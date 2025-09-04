@@ -64,6 +64,11 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Skip chrome-extension and other unsupported schemes
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Handle different types of requests
   if (request.method === 'GET') {
     // Static assets - Cache First
