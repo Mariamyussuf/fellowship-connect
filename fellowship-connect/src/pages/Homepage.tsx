@@ -33,7 +33,7 @@ const Homepage: React.FC = () => {
           <Row className="align-items-center">
             <Col lg={8}>
               <h1 className="display-4 fw-bold mb-4">
-                Welcome to Baptist University Christian Community Fellowship
+                Welcome to Bells University Campus Christian Fellowship
               </h1>
               <p className="lead mb-4">
                 A vibrant community of believers committed to growing in faith, 
@@ -224,7 +224,7 @@ const Homepage: React.FC = () => {
             <Col md={6}>
               <h3 className="mb-4">Contact Us</h3>
               <div className="contact-info">
-                <p><strong>📍 Location:</strong> Baptist University Campus</p>
+                <p><strong>📍 Location:</strong> Bells University Campus</p>
                 <p><strong>📞 Phone:</strong> +234 XXX XXX XXXX</p>
                 <p><strong>✉️ Email:</strong> info@buccf.org</p>
                 <p><strong>🕐 Office Hours:</strong> Mon-Fri, 9:00 AM - 5:00 PM</p>

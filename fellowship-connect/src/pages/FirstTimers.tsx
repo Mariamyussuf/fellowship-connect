@@ -113,7 +113,7 @@ const FirstTimers: React.FC = () => {
             <Card.Body>
               <div className="mb-3">
                 <h6>Main Chapel</h6>
-                <p className="mb-1">Baptist University Main Campus</p>
+                <p className="mb-1">Bells University Main Campus</p>
                 <p className="mb-3">Iwo-Osogbo Road, Iwo, Osun State</p>
               </div>
 

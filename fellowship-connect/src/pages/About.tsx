@@ -25,7 +25,7 @@ const About: React.FC = () => {
         <Col lg={8} className="mx-auto text-center">
           <h1 className="display-4 mb-4">About BUCCF</h1>
           <p className="lead">
-            Baptist University Christian Community Fellowship is more than just a church - 
+            Bells University Campus Christian Fellowship is more than just a church - 
             we're a family united by faith, committed to growing together in Christ.
           </p>
         </Col>
@@ -36,7 +36,7 @@ const About: React.FC = () => {
         <Col lg={6}>
           <h2 className="mb-4">Our Story</h2>
           <p>
-            Founded in 1995, Baptist University Christian Community Fellowship began as a small 
+            Founded in 1995, Bells University Campus Christian Fellowship began as a small 
             group of students seeking to create a space for authentic Christian fellowship on campus. 
             What started with just 12 members has grown into a vibrant community of over 500 active 
             participants.

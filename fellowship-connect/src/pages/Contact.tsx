@@ -41,14 +41,14 @@ const Contact: React.FC = () => {
   };
 
   const contactInfo = [
-    { icon: '📍', title: 'Address', details: 'Baptist University Campus\nIwo-Osogbo Road, Iwo\nOsun State, Nigeria' },
+    { icon: '📍', title: 'Address', details: 'Bells University Campus\nIwo-Osogbo Road, Iwo\nOsun State, Nigeria' },
     { icon: '📞', title: 'Phone', details: '+234 XXX XXX XXXX\n+234 XXX XXX XXXX' },
     { icon: '✉️', title: 'Email', details: 'info@buccf.org\npastor@buccf.org\nwelfare@buccf.org' },
     { icon: '🕐', title: 'Office Hours', details: 'Monday - Friday: 9:00 AM - 5:00 PM\nSaturday: 10:00 AM - 2:00 PM\nSunday: After Service' }
   ];
 
   const campusLocations = [
-    { name: 'Main Campus Chapel', address: 'Baptist University Main Campus', services: 'Sunday 9:00 AM & 11:30 AM' },
+    { name: 'Main Campus Chapel', address: 'Bells University Main Campus', services: 'Sunday 9:00 AM & 11:30 AM' },
     { name: 'Student Center', address: 'Student Activities Building', services: 'Wednesday Bible Study 6:00 PM' },
     { name: 'Youth Center', address: 'Recreation Complex', services: 'Friday Youth Service 7:00 PM' }
   ];
