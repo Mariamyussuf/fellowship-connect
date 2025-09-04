@@ -39,8 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Create a basic profile if user exists but profile doesn't
             setUserProfile({
               uid: user.uid,
-              displayName: user.displayName,
-              email: user.email,
+              displayName: user.displayName || undefined,
+              email: user.email || undefined,
               role: 'member',
               photoURL: user.photoURL,
               active: true,
@@ -60,10 +60,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Check if user is admin
-  const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'superadmin';
+  const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'super-admin';
   
   // Check if user is superadmin
-  const isSuperAdmin = userProfile?.role === 'superadmin';
+  const isSuperAdmin = userProfile?.role === 'super-admin';
 
   const value = {
     currentUser,
