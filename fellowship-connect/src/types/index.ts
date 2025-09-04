@@ -1,0 +1,388 @@
+/**
+ * Core types used throughout the application
+ */
+
+// User related types
+import { Timestamp } from 'firebase/firestore';
+
+export type UserRole = 'member' | 'admin' | 'super-admin';
+
+export interface FellowshipUser {
+  id?: string;
+  uid: string;
+  displayName?: string;
+  email?: string;
+  phoneNumber?: string;
+  fullName?: string;
+  role: UserRole;
+  status?: 'active' | 'inactive' | 'suspended';
+  campus?: string;
+  profileComplete?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  lastLoginAt?: string;
+  academicYear?: string;
+  major?: string;
+  yearOfStudy?: '100 Level' | '200 Level' | '300 Level' | '400 Level' | '500 Level' | 'Masters' | 'PhD';
+  expectedGraduation?: string;
+  photoURL?: string | null;
+  active?: boolean;
+  age?: number;
+  birthday?: string;
+  department?: string;
+}
+
+// Attendance related types
+export interface AttendanceRecord {
+  id?: string;
+  userId: string;
+  userName: string;
+  eventId?: string;
+  eventType: 'weekly' | 'special' | 'retreat' | 'holiday' | 'outreach' | 'other';
+  eventName?: string;
+  checkInTime: string;
+  timestamp: string;
+  checkInMethod: 'qr' | 'manual' | 'offline';
+  qrCodeSessionId?: string;
+  isVisitor?: boolean;
+  visitorInfo?: {
+    name: string;
+    email?: string;
+    phoneNumber?: string;
+    referredBy?: string;
+  };
+  campus?: string;
+  createdAt?: string;
+}
+
+export interface VisitorInfo {
+  fullName: string;
+  phoneNumber?: string;
+  email?: string;
+  invitedBy?: string;
+  isFirstTime: boolean;
+}
+
+// Event related types
+export interface Event {
+  id?: string;
+  title: string;
+  description: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  type: 'weekly' | 'special' | 'retreat' | 'holiday' | 'outreach' | 'other';
+  coverImageURL?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  attendees?: string[];
+  rsvpCount?: number;
+}
+
+// Prayer request related types
+export interface PrayerRequest {
+  id?: string;
+  userId: string;
+  userName: string;
+  title: string;
+  content: string;
+  isAnonymous: boolean;
+  isPublic: boolean;
+  category: string;
+  createdAt: string;
+  updatedAt?: string;
+  answeredAt?: string;
+  isAnswered?: boolean;
+  answerNote?: string;
+}
+
+// Testimony related types
+export interface Testimony {
+  id: string;
+  memberName: string;
+  memberEmail?: string;
+  title: string;
+  content: string;
+  category: string;
+  dateOfTestimony?: string;
+  location?: string;
+  witnessedBy?: string;
+  tags?: string[];
+  isAnonymous?: boolean;
+  contactPermission?: boolean;
+  mediaUrls?: string[];
+  status: 'pending' | 'approved' | 'rejected';
+  submittedBy: string;
+  submittedAt: Timestamp;
+  moderatedBy?: string | null;
+  moderatedAt?: Timestamp | null;
+  moderationNotes?: string;
+  featured: boolean;
+  viewCount?: number;
+  likes?: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// Resource related types
+export interface Resource {
+  id?: string;
+  title: string;
+  description: string;
+  category: string;
+  fileURL: string;
+  fileType: string;
+  fileName: string;
+  fileSize: number;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  downloadCount?: number;
+}
+
+// Announcement related types
+export interface Announcement {
+  date: string | number | Date;
+  id?: string;
+  title: string;
+  content: string;
+  category?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  scheduledFor?: string;
+  expiresAt?: string;
+  important?: boolean;
+}
+
+// Service opportunity related types
+export interface ServiceOpportunity {
+  id?: string;
+  title: string;
+  description: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  coordinator: string;
+  coordinatorContact?: string;
+  volunteerLimit?: number;
+  volunteers?: string[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Welfare/Help Request types
+export interface WelfareRequest {
+  id?: string;
+  userId: string;
+  userName: string;
+  email?: string;
+  phoneNumber?: string;
+  requestType: 'financial' | 'food' | 'accommodation' | 'medical' | 'transportation' | 'other';
+  title: string;
+  description: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  status: 'pending' | 'reviewed' | 'approved' | 'completed' | 'declined';
+  assignedTo?: string;
+  assignedAt?: string;
+  resolvedAt?: string;
+  adminNotes?: string;
+  isAnonymous: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Evangelism Report types
+export interface EvangelismReport {
+  id?: string;
+  userId: string;
+  userName: string;
+  title: string;
+  description: string;
+  location?: string;
+  date: string;
+  peopleReached?: number;
+  conversions?: number;
+  followUpRequired?: boolean;
+  followUpNotes?: string;
+  status: 'pending' | 'approved' | 'published' | 'rejected';
+  moderatedBy?: string;
+  moderatedAt?: string;
+  moderationNotes?: string;
+  featured?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Media/Sermon types
+export interface Sermon {
+  id?: string;
+  title: string;
+  description?: string;
+  preacher: string;
+  series?: string;
+  date: string;
+  duration?: number;
+  videoUrl?: string;
+  audioUrl?: string;
+  thumbnailUrl?: string;
+  downloadableResources?: SermonResource[];
+  tags?: string[];
+  scripture?: string;
+  notes?: string;
+  viewCount?: number;
+  downloadCount?: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SermonResource {
+  id?: string;
+  title: string;
+  type: 'pdf' | 'doc' | 'ppt' | 'image' | 'other';
+  url: string;
+  size?: number;
+}
+
+// QR Code and Attendance System types
+export interface QRCodeSession {
+  id?: string;
+  eventId?: string;
+  eventName: string;
+  eventType: 'weekly' | 'special' | 'retreat' | 'holiday' | 'outreach' | 'other';
+  wordOfTheDay: string;
+  qrCodeData: string;
+  generatedAt: string;
+  expiresAt: string;
+  isActive: boolean;
+  generatedBy: string;
+  attendanceCount?: number;
+}
+
+// Device Management types
+export interface Device {
+  id?: string;
+  deviceName: string;
+  deviceType: 'tablet' | 'kiosk' | 'mobile' | 'desktop';
+  location: string;
+  isActive: boolean;
+  lastSyncAt?: string;
+  registeredBy: string;
+  registeredAt: string;
+  syncLogs?: DeviceSyncLog[];
+}
+
+export interface DeviceSyncLog {
+  id?: string;
+  deviceId: string;
+  syncType: 'attendance' | 'members' | 'events' | 'full';
+  status: 'success' | 'failed' | 'partial';
+  recordsCount?: number;
+  errorMessage?: string;
+  syncedAt: string;
+}
+
+// Ministry and Small Group types
+export interface Ministry {
+  id?: string;
+  name: string;
+  description: string;
+  leader: string;
+  leaderContact?: string;
+  members?: string[];
+  meetingSchedule?: string;
+  location?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SmallGroup {
+  id?: string;
+  name: string;
+  description?: string;
+  leader: string;
+  coLeader?: string;
+  members: string[];
+  maxMembers?: number;
+  meetingDay: string;
+  meetingTime: string;
+  location: string;
+  isActive: boolean;
+  attendanceRecords?: GroupAttendanceRecord[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface GroupAttendanceRecord {
+  id?: string;
+  groupId: string;
+  date: string;
+  presentMembers: string[];
+  absentMembers: string[];
+  visitors?: string[];
+  notes?: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+// Mailing List types
+export interface MailingListSubscriber {
+  id?: string;
+  email: string;
+  phoneNumber?: string;
+  fullName?: string;
+  subscriptionType: 'email' | 'sms' | 'both';
+  categories: string[];
+  isActive: boolean;
+  subscribedAt: string;
+  unsubscribedAt?: string;
+}
+
+// Notification types
+export interface Notification {
+  id?: string;
+  userId?: string; // null for broadcast notifications
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'success' | 'error' | 'event' | 'reminder';
+  category: 'general' | 'event' | 'prayer' | 'welfare' | 'testimony' | 'admin';
+  isRead: boolean;
+  isPush: boolean;
+  isSMS: boolean;
+  isEmail: boolean;
+  scheduledFor?: string;
+  sentAt?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+// Campus types
+export interface Campus {
+  id?: string;
+  name: string;
+  address: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  serviceTimes: ServiceTime[];
+  contactInfo: {
+    phone?: string;
+    email?: string;
+  };
+  pastor?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ServiceTime {
+  day: string;
+  time: string;
+  serviceType: string;
+}
