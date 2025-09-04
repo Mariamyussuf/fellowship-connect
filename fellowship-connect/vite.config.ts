@@ -6,15 +6,21 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: ['react', 'react-dom'],
+    alias: {
+      'react': 'react',
+      'react-dom': 'react-dom'
+    }
   },
   optimizeDeps: {
     include: ['react', 'react-dom'],
     exclude: [],
   },
   server: {
-    host: true,
+    host: '127.0.0.1',
+    port: 5173,
     hmr: {
-      clientPort: 5173,
+      port: 5173,
+      host: '127.0.0.1'
     },
   },
 })
