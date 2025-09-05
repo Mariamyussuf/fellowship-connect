@@ -1,6 +1,7 @@
 import React from 'react';
 import { Container, Row, Col, Card, Badge } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import buccfLogo from '../assets/BUCCF-LOGO.jpg';
 
 const Homepage: React.FC = () => {
   const serviceTimes = [
@@ -50,10 +51,12 @@ const Homepage: React.FC = () => {
             </Col>
             <Col lg={4} className="text-center">
               <div className="hero-image">
-                <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center" 
-                     style={{ width: '200px', height: '200px' }}>
-                  <span style={{ fontSize: '4rem' }}>⛪</span>
-                </div>
+                <img 
+                  src={buccfLogo} 
+                  alt="BUCCF Logo" 
+                  className="img-fluid rounded-circle"
+                  style={{ width: '200px', height: '200px', objectFit: 'cover' }}
+                />
               </div>
             </Col>
           </Row>

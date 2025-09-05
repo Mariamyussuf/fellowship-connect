@@ -1,5 +1,6 @@
 import React from 'react';
 import { Container, Row, Col, Card } from 'react-bootstrap';
+import buccfLogo from '../assets/BUCCF-LOGO.jpg';
 
 const About: React.FC = () => {
   const leadership = [
@@ -23,6 +24,12 @@ const About: React.FC = () => {
       {/* Header */}
       <Row className="mb-5">
         <Col lg={8} className="mx-auto text-center">
+          <img 
+            src={buccfLogo} 
+            alt="BUCCF Logo" 
+            className="mb-4"
+            style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '50%' }}
+          />
           <h1 className="display-4 mb-4">About BUCCF</h1>
           <p className="lead">
             Bells University Campus Christian Fellowship is more than just a church - 

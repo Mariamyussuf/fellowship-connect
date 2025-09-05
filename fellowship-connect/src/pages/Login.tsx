@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { signIn } from '../firebase/auth';
 import { loginSchema, type LoginFormData } from '../utils/validationSchemas';
+import buccfLogo from '../assets/BUCCF-LOGO.jpg';
 
 const Login = () => {
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,15 @@ const Login = () => {
   return (
     <div className="auth-container">
       <div className="auth-form-container">
-        <h1>Fellowship Connect</h1>
+        <div className="text-center mb-4">
+          <img 
+            src={buccfLogo} 
+            alt="BUCCF Logo" 
+            className="mb-3"
+            style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%' }}
+          />
+          <h1>Fellowship Connect</h1>
+        </div>
         <h2>Login</h2>
         
         {error && <div className="error-message">{error}</div>}
@@ -77,6 +86,9 @@ const Login = () => {
         </form>
         
         <div className="auth-links">
+          <Link to="/" className="btn btn-outline-secondary mb-2">
+            🏠 Back to Home
+          </Link>
           <Link to="/forgot-password">Forgot Password?</Link>
           <span>Don't have an account? <Link to="/register">Register</Link></span>
         </div>
