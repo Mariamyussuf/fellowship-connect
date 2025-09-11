@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "fellowship-connect-next/package.json",
+      "use": "@vercel/next",
+      "config": {
+        "includeFiles": ["fellowship-connect-next/next.config.ts"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "fellowship-connect-next/$1"
+    }
+  ]
+}

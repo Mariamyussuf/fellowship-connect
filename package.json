@@ -1,0 +1,14 @@
+{
+  "name": "buccf-root",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "cd fellowship-connect-next && next build",
+    "dev": "cd fellowship-connect-next && next dev",
+    "start": "cd fellowship-connect-next && next start",
+    "lint": "cd fellowship-connect-next && eslint"
+  },
+  "workspaces": [
+    "fellowship-connect-next"
+  ]
+}
