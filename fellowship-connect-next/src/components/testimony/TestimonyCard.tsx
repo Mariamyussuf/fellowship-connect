@@ -92,7 +92,7 @@ const TestimonyCard: React.FC<TestimonyCardProps> = ({
         <Card.Title className="h5 mb-2">{testimony.title}</Card.Title>
         
         <Card.Text className="text-muted mb-2">
-          {testimony.isAnonymous ? 'Anonymous' : testimony.memberName}
+          {testimony.isAnonymous ? 'Anonymous' : testimony.userName}
           {testimony.dateOfTestimony && (
             <span className="ms-2">• {formatDate(testimony.dateOfTestimony)}</span>
           )}
