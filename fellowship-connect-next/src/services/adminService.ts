@@ -14,8 +14,11 @@ import {
 import { db } from '../lib/firebase';
 import type { FellowshipUser, AttendanceRecord, PrayerRequest, Testimony, EvangelismReport, QRCodeSession, WelfareRequest } from '../types';
 
+// Import QueryDocumentSnapshot for typing the lastDoc parameter
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
+
 // Get all users with pagination
-export const getAllUsers = async (lastDoc: any = null, pageSize = 10) => {
+export const getAllUsers = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
   try {
     let q = query(
       collection(db, 'users'),
@@ -86,6 +89,49 @@ export const deleteUser = async (userId: string) => {
     }
   } catch (error) {
     console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+
+// Get recent attendance records for a user with pagination
+export const getUserAttendance = async (userId: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'attendance'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching user attendance records:', error);
+    throw error;
+  }
+};
+
+// Get all attendance records for admin with pagination
+export const getAllAttendanceRecords = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'attendance'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching attendance records:', error);
     throw error;
   }
 };

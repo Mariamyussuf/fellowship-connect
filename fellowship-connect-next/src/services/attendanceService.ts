@@ -4,7 +4,6 @@ import {
   where, 
   getDocs, 
   doc, 
-  setDoc, 
   addDoc, 
   updateDoc, 
   orderBy, 
@@ -15,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { AttendanceRecord, OfflineAttendanceRecord, QRCodeSession, VisitorInfo } from '../types';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { generateQRCodeSession, generateWordOfTheDay, validateQRCodeSession, canUserCheckIn } from '@/utils/qrCodeUtils';
 
 // Create a new attendance record
@@ -48,7 +48,7 @@ export const getAttendanceByEvent = async (eventId: string) => {
 };
 
 // Get recent attendance records for a user with pagination
-export const getUserAttendance = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+export const getUserAttendance = async (userId: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
   try {
     let q = query(
       collection(db, 'attendance'),
@@ -71,7 +71,7 @@ export const getUserAttendance = async (userId: string, lastDoc: any = null, pag
 };
 
 // Get all attendance records for admin with pagination
-export const getAllAttendanceRecords = async (lastDoc: any = null, pageSize = 20) => {
+export const getAllAttendanceRecords = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'attendance'),

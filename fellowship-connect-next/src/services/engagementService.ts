@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { PrayerRequest, WelfareSupport, EvangelismReport, Notification, WelfareRequest, MailingListSubscriber } from '../types';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
 // Create a new prayer request
 export const createPrayerRequest = async (request: Omit<PrayerRequest, 'id' | 'createdAt'>) => {
@@ -30,7 +31,7 @@ export const createPrayerRequest = async (request: Omit<PrayerRequest, 'id' | 'c
 };
 
 // Get prayer requests for a user with pagination
-export const getUserPrayerRequests = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+export const getUserPrayerRequests = async (userId: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
   try {
     let q = query(
       collection(db, 'prayerRequests'),
@@ -53,7 +54,7 @@ export const getUserPrayerRequests = async (userId: string, lastDoc: any = null,
 };
 
 // Get all prayer requests for admin with pagination
-export const getAllPrayerRequests = async (lastDoc: any = null, pageSize = 20) => {
+export const getAllPrayerRequests = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'prayerRequests'),
@@ -100,7 +101,7 @@ export const createWelfareSupportRequest = async (request: Omit<WelfareSupport, 
 };
 
 // Get welfare support requests for a user with pagination
-export const getUserWelfareSupportRequests = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+export const getUserWelfareSupportRequests = async (userId: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
   try {
     let q = query(
       collection(db, 'welfareSupport'),
@@ -123,7 +124,7 @@ export const getUserWelfareSupportRequests = async (userId: string, lastDoc: any
 };
 
 // Get all welfare support requests for admin with pagination
-export const getAllWelfareSupportRequests = async (lastDoc: any = null, pageSize = 20) => {
+export const getAllWelfareSupportRequests = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'welfareSupport'),
@@ -169,7 +170,7 @@ export const createEvangelismReport = async (report: Omit<EvangelismReport, 'id'
 };
 
 // Get evangelism reports for a user with pagination
-export const getUserEvangelismReports = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+export const getUserEvangelismReports = async (userId: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
   try {
     let q = query(
       collection(db, 'evangelismReports'),
@@ -192,7 +193,7 @@ export const getUserEvangelismReports = async (userId: string, lastDoc: any = nu
 };
 
 // Get all evangelism reports for admin with pagination
-export const getAllEvangelismReports = async (lastDoc: any = null, pageSize = 20) => {
+export const getAllEvangelismReports = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'evangelismReports'),

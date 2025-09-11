@@ -17,6 +17,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import type { MediaItem, Resource, Sermon } from '../types';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
 // Upload media file and create record
 export const uploadMedia = async (file: File, metadata: Omit<MediaItem, 'id' | 'url' | 'createdAt'>) => {
@@ -45,7 +46,7 @@ export const uploadMedia = async (file: File, metadata: Omit<MediaItem, 'id' | '
 };
 
 // Get media items with pagination
-export const getMediaItems = async (lastDoc: any = null, pageSize = 20) => {
+export const getMediaItems = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'media'),
@@ -67,7 +68,7 @@ export const getMediaItems = async (lastDoc: any = null, pageSize = 20) => {
 };
 
 // Get media items by category
-export const getMediaByCategory = async (category: string, lastDoc: any = null, pageSize = 20) => {
+export const getMediaByCategory = async (category: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'media'),

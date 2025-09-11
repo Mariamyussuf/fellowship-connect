@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Testimony } from '../types';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
 // Create a new testimony
 export const createTestimony = async (testimony: Omit<Testimony, 'id' | 'createdAt'>) => {
@@ -32,7 +33,7 @@ export const createTestimony = async (testimony: Omit<Testimony, 'id' | 'created
 };
 
 // Get testimonies for a user with pagination
-export const getUserTestimonies = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+export const getUserTestimonies = async (userId: string, lastDoc: QueryDocumentSnapshot | null = null, pageSize = 10) => {
   try {
     let q = query(
       collection(db, 'testimonies'),
@@ -55,7 +56,7 @@ export const getUserTestimonies = async (userId: string, lastDoc: any = null, pa
 };
 
 // Get all testimonies for admin with pagination
-export const getAllTestimonies = async (lastDoc: any = null, pageSize = 20) => {
+export const getAllTestimonies = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'testimonies'),
@@ -77,7 +78,7 @@ export const getAllTestimonies = async (lastDoc: any = null, pageSize = 20) => {
 };
 
 // Get approved testimonies for public display with pagination
-export const getApprovedTestimonies = async (lastDoc: any = null, pageSize = 20) => {
+export const getApprovedTestimonies = async (lastDoc: QueryDocumentSnapshot | null = null, pageSize = 20) => {
   try {
     let q = query(
       collection(db, 'testimonies'),
