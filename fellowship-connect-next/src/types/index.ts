@@ -211,6 +211,17 @@ export interface QRCodeSession {
   attendanceCount?: number;
 }
 
+// Announcement types
+export interface Announcement {
+  id?: string;
+  title: string;
+  content: string;
+  date: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // Device Management types
 export interface Device {
   id?: string;
