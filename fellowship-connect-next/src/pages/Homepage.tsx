@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import BUCCFLogo from '../assets/BUCCF-LOGO.jpg';
 import { ArrowRight, Bell, BookOpen, Calendar, CheckCircle, ChevronRight, Clock, Globe, Heart, Mail, MapPin, MessageCircle, Phone, Play, Send, Shield, Sparkles, Star, Users, X } from 'lucide-react';
+import Image from 'next/image';
 
 // Advanced color palette with CSS custom properties for theming
 const colorSystem = {
   brightCobalt: '#3C6098',
-  patience: '#E6DDD6', 
+  patience: '#E6DDD6',
   silverBird: '#FBF5F0',
   dancingMist: '#BFC8D8',
   fibonacciBlue: '#112358',
@@ -25,9 +25,18 @@ const useScrollAnimation = (threshold = 0.1): [React.RefObject<HTMLElement | nul
       ([entry]) => setIsVisible(entry.isIntersecting),
       { threshold, rootMargin: '50px 0px -50px 0px' }
     );
+    
+    const currentRef = ref.current;
 
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
   }, [threshold]);
 
   return [ref, isVisible];
@@ -36,28 +45,37 @@ const useScrollAnimation = (threshold = 0.1): [React.RefObject<HTMLElement | nul
 const useAnimatedCounter = (end: number, duration = 2000, start = 0): [number, () => void, boolean] => {
   const [count, setCount] = useState<number>(start);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const animationFrameId = useRef<number | null>(null);
 
   const startAnimation = useCallback(() => {
     if (isAnimating) return;
     setIsAnimating(true);
-    
+
     const startTime = Date.now();
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       // Easing function for smooth animation
       const easeOutCubic = 1 - Math.pow(1 - progress, 3);
       setCount(Math.floor(start + (end - start) * easeOutCubic));
-      
+
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationFrameId.current = requestAnimationFrame(animate);
       } else {
         setIsAnimating(false);
       }
     };
-    requestAnimationFrame(animate);
+    animationFrameId.current = requestAnimationFrame(animate);
   }, [start, end, duration, isAnimating]);
+
+  useEffect(() => {
+    return () => {
+      if(animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, []);
 
   return [count, startAnimation, isAnimating];
 };
@@ -93,11 +111,11 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ notifications, 
         >
           <div className={`
             w-8 h-8 rounded-full flex items-center justify-center text-white text-sm
-            ${notification.type === 'success' ? 'bg-green-500' : 
-              notification.type === 'warning' ? 'bg-yellow-500' : 
+            ${notification.type === 'success' ? 'bg-green-500' :
+              notification.type === 'warning' ? 'bg-yellow-500' :
               notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'}
           `}>
-            {notification.type === 'success' ? <CheckCircle className="w-4 h-4" /> : 
+            {notification.type === 'success' ? <CheckCircle className="w-4 h-4" /> :
              notification.type === 'info' ? <Bell className="w-4 h-4" /> :
              <Star className="w-4 h-4" />}
           </div>
@@ -156,18 +174,21 @@ const Navigation = () => {
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
-      
+
       // Update active section based on scroll position
       const sections = ['home', 'fellowships', 'events', 'contact'];
-      const current = sections.find(section => {
-        const element = document.getElementById(section);
+      let currentSection = 'home';
+      for (const sectionId of sections) {
+        const element = document.getElementById(sectionId);
         if (element) {
           const rect = element.getBoundingClientRect();
-          return rect.top <= 100 && rect.bottom >= 100;
+          if (rect.top <= 100 && rect.bottom >= 100) {
+            currentSection = sectionId;
+            break;
+          }
         }
-        return false;
-      });
-      if (current) setActiveSection(current);
+      }
+      setActiveSection(currentSection);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -193,10 +214,12 @@ const Navigation = () => {
           <div className="flex items-center space-x-4 group cursor-pointer">
             <div className="relative">
               <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 border border-gray-100">
-                <img
-                  src={BUCCFLogo}
+                <Image
+                  src="https://placehold.co/128x128/3C6098/FFFFFF?text=BUCCF"
                   alt="BUCCF Logo"
-                  className="w-full h-full object-cover"
+                  width={56}
+                  height={56}
+                  className="object-cover"
                 />
               </div>
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full animate-pulse shadow-sm"></div>
@@ -217,8 +240,8 @@ const Navigation = () => {
                 href={item.href}
                 className={`
                   relative px-3 py-2 rounded-full transition-all duration-300 font-medium
-                  ${activeSection === item.href.slice(1) 
-                    ? 'text-orange-500 bg-orange-50' 
+                  ${activeSection === item.href.slice(1)
+                    ? 'text-orange-500 bg-orange-50'
                     : 'text-gray-700 hover:text-orange-500 hover:bg-orange-50/50'
                   }
                 `}
@@ -241,9 +264,9 @@ const Navigation = () => {
             className="md:hidden p-3 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors"
           >
             <div className="w-6 h-6 relative">
-              <span className={`absolute top-0 left-0 w-full h-0.5 bg-gray-700 transition-all duration-300 ${isOpen ? 'rotate-45 top-3' : ''}`}></span>
-              <span className={`absolute top-2 left-0 w-full h-0.5 bg-gray-700 transition-all duration-300 ${isOpen ? 'opacity-0' : ''}`}></span>
-              <span className={`absolute top-4 left-0 w-full h-0.5 bg-gray-700 transition-all duration-300 ${isOpen ? '-rotate-45 top-3' : ''}`}></span>
+              <span className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-700 transition-all duration-300 ${isOpen ? 'rotate-45' : '-translate-y-2'}`}></span>
+              <span className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-700 transition-all duration-300 ${isOpen ? 'opacity-0' : ''}`}></span>
+              <span className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-700 transition-all duration-300 ${isOpen ? '-rotate-45' : 'translate-y-2'}`}></span>
             </div>
           </button>
         </div>
@@ -291,7 +314,7 @@ const Hero = () => {
   }, [isHeroVisible, startMemberCount, startFellowshipCount, startEventCount]);
 
   return (
-    <section 
+    <section
       id="home"
       ref={heroRef}
       className="min-h-screen relative overflow-hidden flex items-center"
@@ -300,12 +323,12 @@ const Hero = () => {
       {/* Advanced Animated Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-orange-500/5"></div>
-        
+
         {/* Floating geometric shapes with CSS animations */}
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-blue-200/20 to-blue-400/10 rounded-full blur-3xl animate-float"></div>
         <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-br from-orange-200/15 to-orange-400/10 rounded-full blur-3xl animate-float-delayed"></div>
         <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-br from-purple-200/10 to-pink-200/5 rounded-full blur-2xl animate-pulse"></div>
-        
+
         {/* Subtle pattern overlay */}
         <svg className="absolute inset-0 w-full h-full opacity-[0.02]" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -316,7 +339,7 @@ const Hero = () => {
           <rect fill="url(#cross-pattern)" width="100%" height="100%"/>
         </svg>
       </div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Enhanced Content */}
@@ -326,7 +349,7 @@ const Hero = () => {
               <Sparkles className="w-4 h-4 mr-2 text-orange-500 group-hover:rotate-12 transition-transform" />
               <span style={{ color: colorSystem.brightCobalt }}>Growing Together in Faith & Community</span>
             </div>
-            
+
             <h1 className="text-6xl lg:text-8xl font-black leading-none">
               <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 bg-clip-text text-transparent hover:from-blue-500 hover:to-blue-800 transition-all duration-500">
                 Connect.
@@ -338,19 +361,19 @@ const Hero = () => {
                 <span className="inline-block hover:scale-105 transition-transform duration-300">Grow.</span>
               </div>
             </h1>
-            
+
             <p className="text-2xl leading-relaxed max-w-2xl font-medium" style={{ color: colorSystem.brightCobalt }}>
-              Join a vibrant community of <span className="font-bold text-orange-500">university students</span> united in faith, 
-              friendship, and purpose. Discover your place in <span className="font-bold" style={{ color: colorSystem.fibonacciBlue }}>God's story</span> at Bells University.
+              Join a vibrant community of <span className="font-bold text-orange-500">university students</span> united in faith,
+              friendship, and purpose. Discover your place in <span className="font-bold" style={{ color: colorSystem.fibonacciBlue }}>God&apos;s story</span> at Bells University.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-6">
               <button className="group relative bg-gradient-to-r from-orange-500 to-orange-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-orange-500/25 flex items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 bg-white/20 transform skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                 <span className="relative z-10">Join Our Fellowship</span>
                 <ArrowRight className="ml-3 w-6 h-6 relative z-10 group-hover:translate-x-2 transition-transform duration-300" />
               </button>
-              
+
               <button className="group bg-white/95 backdrop-blur-sm text-blue-900 px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white transition-all duration-300 border-2 border-blue-100 hover:border-blue-300 shadow-xl hover:shadow-2xl flex items-center justify-center">
                 <Play className="mr-3 w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
                 <span>Watch Welcome Video</span>
@@ -381,7 +404,7 @@ const Hero = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Enhanced Visual Element */}
           <div className={`relative transform transition-all duration-1000 delay-300 ${isHeroVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
             <div className="relative">
@@ -389,7 +412,7 @@ const Hero = () => {
               <div className="group relative bg-white/95 backdrop-blur-sm rounded-3xl p-10 shadow-2xl transform hover:scale-105 transition-all duration-500 border border-white/20 overflow-hidden">
                 {/* Animated background gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white to-orange-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                
+
                 <div className="relative z-10 text-center space-y-8">
                   <div className="relative">
                     <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-blue-900 rounded-3xl mx-auto flex items-center justify-center shadow-2xl group-hover:shadow-blue-500/25 transition-all duration-300">
@@ -399,7 +422,7 @@ const Hero = () => {
                       <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-3xl font-black mb-3" style={{ color: colorSystem.fibonacciBlue }}>
                       {memberCount}+ Students
@@ -408,7 +431,7 @@ const Hero = () => {
                       United in Faith & Fellowship
                     </p>
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-6 pt-6 border-t border-gray-100">
                     <div className="text-center group cursor-pointer">
                       <div className="text-2xl font-black text-orange-500 group-hover:scale-110 transition-transform duration-300">
@@ -431,7 +454,7 @@ const Hero = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Enhanced floating elements with better animations */}
               <div className="absolute -top-6 -right-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-3xl shadow-2xl animate-bounce hover:animate-none hover:scale-110 transition-all duration-300 cursor-pointer">
                 <BookOpen className="w-8 h-8" />
@@ -454,17 +477,17 @@ const Hero = () => {
           33% { transform: translate(30px, -30px) rotate(120deg); }
           66% { transform: translate(-20px, 20px) rotate(240deg); }
         }
-        
+
         @keyframes float-delayed {
           0%, 100% { transform: translate(0, 0) rotate(0deg); }
           33% { transform: translate(-30px, 30px) rotate(-120deg); }
           66% { transform: translate(20px, -20px) rotate(-240deg); }
         }
-        
+
         .animate-float {
           animation: float 20s ease-in-out infinite;
         }
-        
+
         .animate-float-delayed {
           animation: float-delayed 25s ease-in-out infinite;
         }
@@ -526,7 +549,7 @@ const FellowshipsSection = () => {
     {
       id: 5,
       name: 'Service Corps',
-      description: 'Serving our community with Christ\'s love and compassion',
+      description: 'Serving our community with Christ&#39;s love and compassion',
       icon: '❤️',
       members: '110+',
       color: 'from-red-500 to-pink-600',
@@ -548,7 +571,7 @@ const FellowshipsSection = () => {
   ];
 
   return (
-    <section 
+    <section
       id="fellowships"
       ref={sectionRef}
       className="py-24 relative overflow-hidden"
@@ -566,7 +589,7 @@ const FellowshipsSection = () => {
             <Users className="w-5 h-5 mr-2 text-orange-500" />
             <span className="font-semibold" style={{ color: colorSystem.brightCobalt }}>Find Your Community</span>
           </div>
-          
+
           <h2 className="text-5xl lg:text-7xl font-black mb-8" style={{ color: colorSystem.fibonacciBlue }}>
             Discover Your
             <span className="block bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mt-2">
@@ -574,11 +597,11 @@ const FellowshipsSection = () => {
             </span>
           </h2>
           <p className="text-2xl max-w-4xl mx-auto font-medium leading-relaxed" style={{ color: colorSystem.brightCobalt }}>
-            Connect with like-minded believers, grow in your spiritual journey, and make lifelong friendships 
+            Connect with like-minded believers, grow in your spiritual journey, and make lifelong friendships
             through our diverse and vibrant fellowship communities.
           </p>
         </div>
-        
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {fellowships.map((fellowship, index) => (
             <div
@@ -596,7 +619,7 @@ const FellowshipsSection = () => {
                 <div className={`bg-gradient-to-br ${fellowship.color} p-8 text-white relative overflow-hidden`}>
                   <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors duration-300"></div>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-700"></div>
-                  
+
                   <div className="relative z-10">
                     <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
                       {fellowship.icon}
@@ -605,7 +628,7 @@ const FellowshipsSection = () => {
                     <p className="text-white/90 leading-relaxed">{fellowship.description}</p>
                   </div>
                 </div>
-                
+
                 {/* Card content */}
                 <div className="p-8 space-y-6">
                   {/* Member count with animation */}
@@ -621,7 +644,7 @@ const FellowshipsSection = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-gray-50 rounded-xl">
@@ -633,18 +656,18 @@ const FellowshipsSection = () => {
                       <div className="text-xs text-gray-500">Satisfaction</div>
                     </div>
                   </div>
-                  
+
                   {/* Testimonial preview */}
                   <blockquote className="text-sm italic text-gray-600 border-l-4 border-orange-200 pl-4">
-                    "{fellowship.testimonial.substring(0, 60)}..."
+                    &#34;{fellowship.testimonial.substring(0, 60)}...&#34;
                   </blockquote>
-                  
+
                   {/* CTA Button */}
                   <button className={`w-full bg-gradient-to-r ${fellowship.color} text-white py-4 rounded-2xl font-bold hover:shadow-lg transition-all duration-300 group-hover:shadow-xl transform hover:scale-105`}>
                     Join Fellowship
                   </button>
                 </div>
-                
+
                 {/* Hover indicator */}
                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="bg-white/20 backdrop-blur-sm rounded-full p-2">
@@ -655,7 +678,7 @@ const FellowshipsSection = () => {
             </div>
           ))}
         </div>
-        
+
         <div className={`text-center transform transition-all duration-1000 delay-300 ${isSectionVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
           <button className="group bg-gradient-to-r from-orange-500 to-orange-600 text-white px-12 py-5 rounded-2xl font-bold text-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:scale-105 flex items-center mx-auto">
             Explore All Ministries
@@ -675,12 +698,12 @@ const FellowshipsSection = () => {
               >
                 <X className="w-6 h-6" />
               </button>
-              
+
               <div className="text-6xl mb-4">{selectedFellowship.icon}</div>
               <h3 className="text-3xl font-bold mb-4">{selectedFellowship.name}</h3>
               <p className="text-xl text-white/90">{selectedFellowship.description}</p>
             </div>
-            
+
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="bg-gray-50 p-4 rounded-xl">
@@ -696,11 +719,11 @@ const FellowshipsSection = () => {
                   <div className="text-sm text-gray-500">Satisfaction</div>
                 </div>
               </div>
-              
+
               <blockquote className="text-lg italic text-gray-700 border-l-4 border-orange-200 pl-6 py-4 bg-orange-50 rounded-r-xl">
-                "{selectedFellowship.testimonial}"
+                &#34;{selectedFellowship.testimonial}&#34;
               </blockquote>
-              
+
               <div className="flex space-x-4">
                 <button className={`flex-1 bg-gradient-to-r ${selectedFellowship.color} text-white py-4 rounded-2xl font-bold hover:shadow-lg transition-all duration-300`}>
                   Join This Fellowship
@@ -774,7 +797,7 @@ const EventsSection = () => {
   ];
 
   return (
-    <section 
+    <section
       id="events"
       ref={sectionRef}
       className="py-24 relative overflow-hidden"
@@ -784,9 +807,9 @@ const EventsSection = () => {
         <div className={`text-center mb-20 transform transition-all duration-1000 ${isSectionVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
           <div className="inline-flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 mb-6 shadow-lg">
             <Calendar className="w-5 h-5 mr-2 text-orange-500" />
-            <span className="font-semibold" style={{ color: colorSystem.brightCobalt }}>What's Coming Up</span>
+            <span className="font-semibold" style={{ color: colorSystem.brightCobalt }}>What&apos;s Coming Up</span>
           </div>
-          
+
           <h2 className="text-5xl lg:text-7xl font-black mb-8" style={{ color: colorSystem.fibonacciBlue }}>
             Upcoming
             <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mt-2">
@@ -794,11 +817,11 @@ const EventsSection = () => {
             </span>
           </h2>
           <p className="text-2xl max-w-4xl mx-auto font-medium leading-relaxed" style={{ color: colorSystem.brightCobalt }}>
-            Join us for transformative experiences that will strengthen your faith, build lasting relationships, 
+            Join us for transformative experiences that will strengthen your faith, build lasting relationships,
             and equip you for Kingdom impact.
           </p>
         </div>
-        
+
         <div className="grid lg:grid-cols-3 gap-8 mb-16">
           {events.map((event, index) => (
             <div
@@ -814,7 +837,7 @@ const EventsSection = () => {
                 {/* Event header with dynamic styling */}
                 <div className="relative bg-gradient-to-br from-blue-600 to-blue-900 p-8 text-white overflow-hidden">
                   <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20 group-hover:scale-150 transition-transform duration-700"></div>
-                  
+
                   <div className="relative z-10 flex items-start justify-between mb-4">
                     <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
                       {event.image}
@@ -833,24 +856,24 @@ const EventsSection = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <h3 className="text-2xl font-bold mb-2 group-hover:text-yellow-100 transition-colors duration-300">
                     {event.title}
                   </h3>
                   <div className="flex items-center text-blue-100">
                     <Calendar className="w-4 h-4 mr-2" />
                     <span className="font-medium">
-                      {new Date(event.date).toLocaleDateString('en-US', { 
+                      {new Date(event.date).toLocaleDateString('en-US', {
                         weekday: 'long', month: 'short', day: 'numeric'
                       })}
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Event details */}
                 <div className="p-8 space-y-6">
                   <p className="text-gray-600 leading-relaxed">{event.description}</p>
-                  
+
                   {/* Event info grid */}
                   <div className="space-y-4">
                     <div className="flex items-center text-gray-600">
@@ -866,7 +889,7 @@ const EventsSection = () => {
                       <span className="font-medium">{event.attendees}/{event.maxAttendees} registered</span>
                     </div>
                   </div>
-                  
+
                   {/* Attendance progress bar */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm text-gray-500">
@@ -874,7 +897,7 @@ const EventsSection = () => {
                       <span>{Math.round((event.attendees / event.maxAttendees) * 100)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all duration-1000 ${
                           event.urgency === 'high' ? 'bg-red-500' :
                           event.urgency === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
@@ -883,7 +906,7 @@ const EventsSection = () => {
                       ></div>
                     </div>
                   </div>
-                  
+
                   {/* Tags */}
                   <div className="flex flex-wrap gap-2">
                     {event.tags.map((tag) => (
@@ -892,7 +915,7 @@ const EventsSection = () => {
                       </span>
                     ))}
                   </div>
-                  
+
                   {/* Price and CTA */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div>
@@ -907,7 +930,7 @@ const EventsSection = () => {
             </div>
           ))}
         </div>
-        
+
         <div className={`text-center transform transition-all duration-1000 delay-500 ${isSectionVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
           <button className="group bg-gradient-to-r from-blue-600 to-blue-700 text-white px-12 py-5 rounded-2xl font-bold text-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 flex items-center mx-auto">
             View All Events
@@ -922,9 +945,9 @@ const EventsSection = () => {
 // Enhanced CTA Section with interactive elements
 const CTASection = () => {
   const [sectionRef, isSectionVisible] = useScrollAnimation(0.3);
-  
+
   return (
-    <section 
+    <section
       ref={sectionRef}
       className="py-24 relative overflow-hidden"
       style={{ backgroundColor: colorSystem.dancingMist }}
@@ -936,31 +959,31 @@ const CTASection = () => {
         <div className="absolute top-1/3 left-1/4 w-24 h-24 bg-gradient-to-br from-purple-300/15 to-pink-300/10 rounded-full animate-bounce"></div>
         <div className="absolute bottom-1/3 right-1/3 w-20 h-20 bg-gradient-to-br from-green-300/20 to-green-500/10 rounded-full animate-bounce delay-500"></div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
         <div className={`transform transition-all duration-1000 ${isSectionVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
           <div className="bg-white/95 backdrop-blur-xl rounded-[3rem] p-16 shadow-2xl border border-white/30 relative overflow-hidden">
             {/* Animated background gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-white to-orange-50/20"></div>
-            
+
             <div className="relative z-10">
               <div className="inline-flex items-center bg-gradient-to-r from-orange-100 to-orange-50 rounded-full px-6 py-3 mb-8 shadow-lg">
                 <Sparkles className="w-5 h-5 mr-2 text-orange-500" />
                 <span className="font-bold text-orange-700">Your Journey Starts Here</span>
               </div>
-              
+
               <h2 className="text-5xl lg:text-7xl font-black mb-8 leading-tight" style={{ color: colorSystem.fibonacciBlue }}>
                 Ready to Begin Your
                 <span className="block bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mt-2">
                   Faith Journey?
                 </span>
               </h2>
-              
+
               <p className="text-2xl mb-12 max-w-4xl mx-auto font-medium leading-relaxed" style={{ color: colorSystem.brightCobalt }}>
-                Take the next step in your spiritual growth. Join a fellowship, attend an event, or simply connect 
-                with our vibrant community. We're here to support and encourage you every step of the way.
+                Take the next step in your spiritual growth. Join a fellowship, attend an event, or simply connect
+                with our vibrant community. We&#39;re here to support and encourage you every step of the way.
               </p>
-              
+
               {/* Enhanced journey steps */}
               <div className="grid md:grid-cols-3 gap-8 mb-16">
                 {[
@@ -968,7 +991,7 @@ const CTASection = () => {
                   { icon: Heart, title: 'Serve', desc: 'Make a meaningful difference in your community through our various service opportunities', color: 'from-orange-500 to-orange-700' },
                   { icon: BookOpen, title: 'Grow', desc: 'Deepen your faith through Bible studies, discipleship, and spiritual mentoring', color: 'from-green-500 to-green-700' }
                 ].map((step, index) => (
-                  <div 
+                  <div
                     key={step.title}
                     className={`text-center group transform transition-all duration-500 hover:scale-105 ${isSectionVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}
                     style={{ transitionDelay: `${(index + 1) * 200}ms` }}
@@ -990,7 +1013,7 @@ const CTASection = () => {
                   </div>
                 ))}
               </div>
-              
+
               {/* Enhanced CTA buttons */}
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
                 <button className="group relative bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 text-white px-12 py-6 rounded-3xl font-bold text-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-blue-500/25 flex items-center justify-center overflow-hidden">
@@ -998,8 +1021,8 @@ const CTASection = () => {
                   <span className="relative z-10">Join a Fellowship Today</span>
                   <ArrowRight className="ml-3 w-6 h-6 relative z-10 group-hover:translate-x-2 transition-transform duration-300" />
                 </button>
-                
-                <button className="group bg-white text-orange-600 border-3 border-orange-500 px-12 py-6 rounded-3xl font-bold text-2xl hover:bg-orange-500 hover:text-white transition-all duration-300 transform hover:scale-105 shadow-2xl flex items-center justify-center">
+
+                <button className="group bg-white text-orange-600 border-2 border-orange-500 px-12 py-6 rounded-3xl font-bold text-2xl hover:bg-orange-500 hover:text-white transition-all duration-300 transform hover:scale-105 shadow-2xl flex items-center justify-center">
                   <MessageCircle className="mr-3 w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
                   <span>Get in Touch</span>
                 </button>
@@ -1017,7 +1040,7 @@ const Footer = () => {
   const [subscriptionEmail, setSubscriptionEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
-  const handleSubscribe = (e: { preventDefault: () => void; }) => {
+  const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (subscriptionEmail) {
       setSubscribed(true);
@@ -1029,198 +1052,124 @@ const Footer = () => {
   };
 
   return (
-    <footer className="relative overflow-hidden" style={{ backgroundColor: colorSystem.fibonacciBlue }}>
-      {/* Subtle background pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="footer-pattern" width="100" height="100" patternUnits="userSpaceOnUse">
-              <circle cx="50" cy="50" r="2" fill="currentColor" className="text-white"/>
-              <circle cx="25" cy="25" r="1" fill="currentColor" className="text-white"/>
-              <circle cx="75" cy="75" r="1" fill="currentColor" className="text-white"/>
-            </pattern>
-          </defs>
-          <rect fill="url(#footer-pattern)" width="100%" height="100%"/>
-        </svg>
-      </div>
+    <footer className="bg-blue-900 text-blue-200 py-20 relative overflow-hidden" id="contact">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-blue-800 opacity-50"></div>
+      <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/subtle-carbon.png')]"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
-        <div className="grid lg:grid-cols-4 gap-12 mb-16">
-          {/* Enhanced Brand Section */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center space-x-6 mb-8 group">
-              <div className="relative">
-                <div className="w-20 h-20 rounded-3xl overflow-hidden bg-white/10 backdrop-blur-sm shadow-2xl group-hover:shadow-orange-500/25 transition-all duration-300 group-hover:scale-105 border border-white/20">
-                  <img
-                    src={BUCCFLogo}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid lg:grid-cols-3 gap-16">
+          {/* Brand and Info */}
+          <div className="space-y-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20">
+                  <Image
+                    src="https://placehold.co/128x128/3C6098/FFFFFF?text=BUCCF"
                     alt="BUCCF Logo"
-                    className="w-full h-full object-cover"
+                    width={48}
+                    height={48}
+                    className="object-contain rounded-lg"
                   />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                  <div className="w-3 h-3 bg-white rounded-full"></div>
-                </div>
               </div>
-              <div>
-                <h3 className="text-3xl font-black text-white mb-1">BUCCF</h3>
-                <p className="text-blue-200 text-lg font-medium leading-tight">Bells University Campus<br />Christian Fellowship</p>
+               <div>
+                <h3 className="text-2xl font-bold text-white">BUCCF</h3>
+                <p className="text-sm text-blue-300">Bells University Fellowship</p>
               </div>
             </div>
-            
-            <p className="text-blue-200 mb-8 max-w-lg text-lg leading-relaxed">
-              Building a thriving community where university students can discover their purpose, 
-              grow in authentic faith, find lifelong friendships, and serve others with the transforming love of Christ.
+            <p className="text-blue-300 leading-relaxed">
+              A community of students growing in faith, serving with love, and impacting the campus for Christ.
             </p>
-            
-            {/* Newsletter Subscription */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8">
-              <h4 className="text-white font-bold mb-4 text-xl">Stay Connected</h4>
-              <form onSubmit={handleSubscribe} className="flex gap-3">
-                <input
-                  type="email"
-                  value={subscriptionEmail}
-                  onChange={(e) => setSubscriptionEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/60 focus:outline-none focus:border-orange-500 transition-colors"
-                />
-                <button
-                  type="submit"
-                  disabled={subscribed}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center"
-                >
-                  {subscribed ? <CheckCircle className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-                </button>
-              </form>
-              {subscribed && (
-                <p className="text-green-300 text-sm mt-2">✨ Thanks for subscribing!</p>
-              )}
-            </div>
-            
-            {/* Featured Scripture */}
-            <div className="bg-gradient-to-r from-blue-800/50 to-blue-700/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10">
-              <div className="text-center">
-                <div className="text-6xl mb-4">✨</div>
-                <p className="text-white text-xl italic mb-4 leading-relaxed">
-                  "Therefore encourage one another and build each other up, just as in fact you are doing."
-                </p>
-                <p className="text-blue-300 font-semibold">— 1 Thessalonians 5:11</p>
-              </div>
+            <div className="flex space-x-4">
+              <a href="#" className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-3 text-sm font-semibold shadow-lg hover:bg-white/20 transition-colors">
+                <Globe className="w-4 h-4 mr-2 text-blue-300" />
+                <span className="text-blue-400">Contact</span>
+              </a>
+              <a href="#" className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-3 text-sm font-semibold shadow-lg hover:bg-white/20 transition-colors">
+                <Phone className="w-4 h-4 mr-2 text-blue-300" />
+                <span className="text-blue-400">Call Us</span>
+              </a>
+              <a href="#" className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-3 text-sm font-semibold shadow-lg hover:bg-white/20 transition-colors">
+                <Mail className="w-4 h-4 mr-2 text-blue-300" />
+                <span className="text-blue-400">Email</span>
+              </a>
             </div>
           </div>
-          
-          {/* Quick Links with enhanced styling */}
-          <div>
-            <h4 className="text-white font-bold mb-8 text-2xl flex items-center">
-              <Globe className="w-6 h-6 mr-2 text-orange-500" />
-              Quick Links
-            </h4>
-            <div className="space-y-4">
-              {[
-                { name: 'About Us', href: '#about' },
-                { name: 'Our Fellowships', href: '#fellowships' },
-                { name: 'Upcoming Events', href: '#events' },
-                { name: 'Prayer Requests', href: '#prayer' },
-                { name: 'Resources', href: '#resources' },
-                { name: 'Leadership', href: '#leadership' },
-                { name: 'Gallery', href: '#gallery' },
-                { name: 'Contact Us', href: '#contact' }
-              ].map((link) => (
-                <a 
-                  key={link.name} 
-                  href={link.href} 
-                  className="group flex items-center text-blue-200 hover:text-white transition-colors duration-300 text-lg"
-                >
-                  <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
-                  <span className="group-hover:translate-x-1 transition-transform duration-300">{link.name}</span>
-                </a>
-              ))}
+
+          {/* Quick Links */}
+          <div className="space-y-6">
+            <h4 className="text-lg font-bold">Quick Links</h4>
+            <nav className="space-y-3">
+              <a href="#" className="text-blue-300 hover:text-white transition-colors">Home</a>
+              <a href="#" className="text-blue-300 hover:text-white transition-colors">About</a>
+              <a href="#" className="text-blue-300 hover:text-white transition-colors">Fellowships</a>
+              <a href="#" className="text-blue-300 hover:text-white transition-colors">Events</a>
+              <a href="#" className="text-blue-300 hover:text-white transition-colors">Resources</a>
+            </nav>
+          </div>
+
+          {/* Newsletter Signup */}
+          <div className="space-y-6">
+            <h4 className="text-lg font-bold">Join Our Newsletter</h4>
+            <p className="text-blue-300 leading-relaxed">
+              Stay informed with updates about events and latest developments. Simply provide your email
+              below.
+            </p>
+            <div className="flex space-x-4">
+              <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-orange-500 transition-colors"><Users className="w-5 h-5"/></a>
+              <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-orange-500 transition-colors"><Heart className="w-5 h-5"/></a>
+              <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-orange-500 transition-colors"><BookOpen className="w-5 h-5"/></a>
             </div>
           </div>
-          
-          {/* Enhanced Contact Info */}
+
+          {/* Quick Links and Contact */}
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <h4 className="font-bold text-white text-lg mb-4">Quick Links</h4>
+              <ul className="space-y-2">
+                <li><a href="#home" className="text-blue-300 hover:text-orange-400 transition-colors">Home</a></li>
+                <li><a href="#about" className="text-blue-300 hover:text-orange-400 transition-colors">About</a></li>
+                <li><a href="#fellowships" className="text-blue-300 hover:text-orange-400 transition-colors">Fellowships</a></li>
+                <li><a href="#events" className="text-blue-300 hover:text-orange-400 transition-colors">Events</a></li>
+              </ul>
+            </div>
+             <div>
+              <h4 className="font-bold text-white text-lg mb-4">Contact</h4>
+               <ul className="space-y-2">
+                <li className="flex items-start"><Phone className="w-4 h-4 mr-2 mt-1 text-orange-400 flex-shrink-0"/> <span className="text-blue-300">+234 123 456 7890</span></li>
+                <li className="flex items-start"><Mail className="w-4 h-4 mr-2 mt-1 text-orange-400 flex-shrink-0"/> <span className="text-blue-300">contact@buccf.org</span></li>
+                <li className="flex items-start"><MapPin className="w-4 h-4 mr-2 mt-1 text-orange-400 flex-shrink-0"/> <span className="text-blue-300">Bells University, Ota</span></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Newsletter Subscription */}
           <div>
-            <h4 className="text-white font-bold mb-8 text-2xl flex items-center">
-              <Phone className="w-6 h-6 mr-2 text-orange-500" />
-              Get in Touch
-            </h4>
-            <div className="space-y-6">
-              {[
-                { icon: MapPin, label: 'Campus Location', value: 'Bells University of Technology\nOta, Ogun State, Nigeria', color: 'text-orange-500' },
-                { icon: Phone, label: 'Phone', value: '+234 XXX XXX XXXX', color: 'text-green-400' },
-                { icon: Mail, label: 'Email', value: 'hello@buccf.org', color: 'text-blue-400' },
-                { icon: Clock, label: 'Office Hours', value: 'Mon-Fri: 9:00 AM - 5:00 PM\nSat-Sun: By Appointment', color: 'text-purple-400' }
-              ].map((contact) => (
-                <div key={contact.label} className="group">
-                  <div className="flex items-start space-x-4">
-                    <div className={`${contact.color} p-2 rounded-xl bg-white/10 group-hover:bg-white/20 transition-colors duration-300`}>
-                      <contact.icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-blue-300 text-sm font-medium">{contact.label}</p>
-                      <p className="text-white text-lg leading-relaxed whitespace-pre-line group-hover:text-blue-100 transition-colors duration-300">
-                        {contact.value}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Social Media Links */}
-            <div className="mt-8">
-              <h5 className="text-blue-300 font-semibold mb-4 text-lg">Follow Our Journey</h5>
-              <div className="flex space-x-4">
-                {[
-                  { name: 'YouTube', icon: '📺', color: 'hover:bg-red-600' },
-                  { name: 'Instagram', icon: '📷', color: 'hover:bg-pink-600' },
-                  { name: 'Twitter', icon: '🐦', color: 'hover:bg-blue-400' },
-                  { name: 'WhatsApp', icon: '💬', color: 'hover:bg-green-600' }
-                ].map((social) => (
-                  <a
-                    key={social.name}
-                    href="#"
-                    className={`w-12 h-12 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-2xl hover:scale-110 transition-all duration-300 ${social.color} group`}
-                    title={social.name}
-                  >
-                    <span className="group-hover:scale-110 transition-transform duration-300">{social.icon}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
+            <h4 className="font-bold text-white text-lg mb-4">Newsletter</h4>
+            <p className="text-blue-300 mb-4">Get the latest updates and encouragement in your inbox.</p>
+            <form onSubmit={handleSubscribe} className="flex">
+              <input
+                type="email"
+                value={subscriptionEmail}
+                onChange={(e) => setSubscriptionEmail(e.target.value)}
+                placeholder="Your Email"
+                className="flex-1 bg-white/10 border border-white/20 rounded-l-lg px-4 py-2 text-white placeholder-blue-300 focus:outline-none focus:border-orange-500 transition-colors"
+                required
+              />
+              <button type="submit" className="bg-orange-500 text-white px-4 py-2 rounded-r-lg font-semibold hover:bg-orange-600 transition-colors">
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
+            {subscribed && <p className="text-green-400 mt-2 text-sm">Thank you for subscribing!</p>}
           </div>
         </div>
-        
-        {/* Enhanced bottom section */}
-        <div className="border-t border-blue-800/50 pt-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center space-y-6 lg:space-y-0">
-            {/* Copyright */}
-            <div className="text-center lg:text-left">
-              <p className="text-blue-300 text-lg">
-                © 2025 Bells University Campus Christian Fellowship
-              </p>
-              <p className="text-blue-400 text-sm mt-1">
-                Built with ❤️ for the Kingdom • Designed with 🙏 for His Glory
-              </p>
-            </div>
-            
-            {/* Additional links */}
-            <div className="flex space-x-8">
-              <a href="#privacy" className="text-blue-300 hover:text-white transition-colors text-sm">
-                Privacy Policy
-              </a>
-              <a href="#terms" className="text-blue-300 hover:text-white transition-colors text-sm">
-                Terms of Service
-              </a>
-              <a href="#accessibility" className="text-blue-300 hover:text-white transition-colors text-sm">
-                Accessibility
-              </a>
-            </div>
-          </div>
+
+        <div className="mt-16 pt-8 border-t border-blue-800/50 text-center text-blue-400 text-sm">
+          <p>&copy; {new Date().getFullYear()} Bells University Campus Christian Fellowship. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
   );
 };
+
 
 // Quick Prayer Request Component
 const QuickPrayerRequest = () => {
@@ -1229,7 +1178,7 @@ const QuickPrayerRequest = () => {
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState('');
 
-  const handleSubmit = (e: { preventDefault: () => void; }) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (request.trim()) {
       setSubmitted(true);
@@ -1265,12 +1214,12 @@ const QuickPrayerRequest = () => {
                 <div className="text-6xl mb-6">✨</div>
                 <h3 className="text-2xl font-bold text-green-600 mb-4">Prayer Request Received!</h3>
                 <p className="text-gray-600 text-lg leading-relaxed">
-                  Thank you for sharing your heart with us. Our prayer team will lift you up in prayer. 
+                  Thank you for sharing your heart with us. Our prayer team will lift you up in prayer.
                   Remember, God hears every prayer and cares deeply for you.
                 </p>
                 <div className="bg-green-50 rounded-2xl p-4 mt-6">
                   <p className="text-green-700 italic">
-                    "The prayer of a righteous person is powerful and effective." - James 5:16
+                    &#34;The prayer of a righteous person is powerful and effective.&#34; - James 5:16
                   </p>
                 </div>
               </div>
@@ -1294,7 +1243,7 @@ const QuickPrayerRequest = () => {
                     Share your prayer request with our community
                   </p>
                 </div>
-                
+
                 <div className="p-8 space-y-6">
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Your Name (Optional)</label>
@@ -1306,7 +1255,7 @@ const QuickPrayerRequest = () => {
                       className="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-purple-500 focus:outline-none transition-colors"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">Prayer Request*</label>
                     <textarea
@@ -1318,14 +1267,14 @@ const QuickPrayerRequest = () => {
                       required
                     />
                   </div>
-                  
+
                   <div className="bg-purple-50 rounded-2xl p-4">
                     <p className="text-purple-700 text-sm">
                       <Shield className="w-4 h-4 inline mr-1" />
                       Your privacy matters to us. Prayer requests are handled confidentially by our prayer team.
                     </p>
                   </div>
-                  
+
                   <button
                     type="submit"
                     disabled={!request.trim()}
@@ -1350,36 +1299,34 @@ const LiveStats = () => {
     onlineMembers: 47,
     todaysPrayers: 23,
     upcomingEvents: 3,
-    activeFellowships: 12
   });
 
   useEffect(() => {
     const interval = setInterval(() => {
       setStats(prev => ({
-        onlineMembers: prev.onlineMembers + Math.floor(Math.random() * 3) - 1,
-        todaysPrayers: prev.todaysPrayers + Math.floor(Math.random() * 2),
-        upcomingEvents: prev.upcomingEvents,
-        activeFellowships: prev.activeFellowships
+        onlineMembers: Math.max(10, prev.onlineMembers + Math.floor(Math.random() * 5) - 2),
+        todaysPrayers: prev.todaysPrayers + (Math.random() > 0.8 ? 1 : 0),
+        upcomingEvents: 3,
       }));
-    }, 30000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="fixed top-20 left-4 z-30 bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-white/20 hidden lg:block">
+    <div className="fixed top-24 left-6 z-40 bg-white/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-white/20 hidden lg:block">
       <div className="space-y-3">
-        <div className="flex items-center text-sm">
+        <div className="flex items-center text-sm font-medium text-gray-700">
           <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-          <span className="text-gray-600">{stats.onlineMembers} members online</span>
+          {stats.onlineMembers} Members Online
         </div>
-        <div className="flex items-center text-sm">
-          <span className="text-2xl mr-2">🙏</span>
-          <span className="text-gray-600">{stats.todaysPrayers} prayers today</span>
+        <div className="flex items-center text-sm font-medium text-gray-700">
+          <Heart className="w-4 h-4 mr-2 text-red-500"/>
+          {stats.todaysPrayers} Prayers Today
         </div>
-        <div className="flex items-center text-sm">
-          <span className="text-2xl mr-2">📅</span>
-          <span className="text-gray-600">{stats.upcomingEvents} events coming</span>
+        <div className="flex items-center text-sm font-medium text-gray-700">
+          <Calendar className="w-4 h-4 mr-2 text-blue-500"/>
+          {stats.upcomingEvents} Upcoming Events
         </div>
       </div>
     </div>
@@ -1390,24 +1337,22 @@ const LiveStats = () => {
 const Homepage = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addNotification = (notification: { type: 'success' | 'warning' | 'error' | 'info'; title: string; message: string; }) => {
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'isEntering'>) => {
     const id = Date.now();
     const newNotification = { ...notification, id, isEntering: false };
     setNotifications(prev => [...prev, newNotification]);
-    
-    // Trigger enter animation
+
     setTimeout(() => {
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, isEntering: true } : n)
       );
     }, 100);
 
-    // Auto dismiss after 5 seconds
     setTimeout(() => dismissNotification(id), 5000);
-  };
+  }, []);
 
   const dismissNotification = (id: number) => {
-    setNotifications(prev => 
+    setNotifications(prev =>
       prev.map(n => n.id === id ? { ...n, isEntering: false } : n)
     );
     setTimeout(() => {
@@ -1415,9 +1360,8 @@ const Homepage = () => {
     }, 500);
   };
 
-  // Simulate some welcome notifications
   useEffect(() => {
-    setTimeout(() => {
+    const timer1 = setTimeout(() => {
       addNotification({
         type: 'info',
         title: 'Welcome to BUCCF!',
@@ -1425,17 +1369,26 @@ const Homepage = () => {
       });
     }, 2000);
 
-    setTimeout(() => {
+    const timer2 = setTimeout(() => {
       addNotification({
         type: 'success',
         title: 'New Event Alert',
         message: 'Youth Leadership Summit - Register now!'
       });
     }, 5000);
-  }, []);
+    
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    }
+  }, [addNotification]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 font-sans">
+      <NotificationSystem
+        notifications={notifications}
+        onDismiss={dismissNotification}
+      />
       <Navigation />
       <Hero />
       <FellowshipsSection />
@@ -1444,12 +1397,9 @@ const Homepage = () => {
       <Footer />
       <QuickPrayerRequest />
       <LiveStats />
-      <NotificationSystem 
-        notifications={notifications}
-        onDismiss={dismissNotification}
-      />
     </div>
   );
 };
 
 export default Homepage;
+

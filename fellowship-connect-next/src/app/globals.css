@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Bootstrap CSS */
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+@theme {
+  --color-bright-cobalt: #3C6098;
+  --color-patience: #E6DDD6;
+  --color-silver-bird: #FBF5F0;
+  --color-dancing-mist: #BFC8D8;
+  --color-fibonacci-blue: #112358;
+  --color-aegean-sky: #E48B59;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

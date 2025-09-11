@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Button, Form, Alert, Modal, Spinner } from 'react-bootstrap';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { AttendanceService } from '../../services/attendanceService';
 import type { VisitorInfo } from '../../types';
 
@@ -35,7 +35,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onCheckInSuccess }) => {
     // Get current word of the day
     const currentWord = attendanceService.getCurrentWordOfTheDay();
     setWordOfTheDay(currentWord);
-  }, []);
+  }, [attendanceService]);
 
   const startCamera = async () => {
     try {
@@ -50,8 +50,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onCheckInSuccess }) => {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
-    } catch (error) {
+    } catch (err) {
       setError('Unable to access camera. Please check permissions or use manual entry.');
+      console.error('Error accessing camera:', err);
       setScanning(false);
     }
   };
@@ -155,9 +156,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onCheckInSuccess }) => {
         setError(result.message);
       }
 
-    } catch (error) {
+    } catch (err) {
       setError('Failed to process check-in. Please try again.');
-      console.error('Error processing QR code:', error);
+      console.error('Error processing QR code:', err);
     } finally {
       setLoading(false);
     }
@@ -189,9 +190,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onCheckInSuccess }) => {
 
           <div className="mb-3">
             <Alert variant="info">
-              <strong>Today's Word of the Day:</strong> <span className="badge bg-primary">{wordOfTheDay}</span>
+              <strong>Today&#39;s Word of the Day:</strong> <span className="badge bg-primary">{wordOfTheDay}</span>
               <br />
-              <small>You'll need to confirm this word when scanning the QR code.</small>
+              <small>You&#39;ll need to confirm this word when scanning the QR code.</small>
             </Alert>
           </div>
 
@@ -239,7 +240,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onCheckInSuccess }) => {
                 disabled={loading}
               />
               <Form.Text className="text-muted">
-                If camera doesn't work, you can manually enter the QR code data.
+                If camera doesn&#39;t work, you can manually enter the QR code data.
               </Form.Text>
             </Form.Group>
 
@@ -315,7 +316,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onCheckInSuccess }) => {
                 type="text"
                 value={visitorInfo.invitedBy}
                 onChange={(e) => setVisitorInfo({...visitorInfo, invitedBy: e.target.value})}
-                placeholder="Who invited you?"
+                placeholder="Who invited you&#63;"
               />
             </Form.Group>
 

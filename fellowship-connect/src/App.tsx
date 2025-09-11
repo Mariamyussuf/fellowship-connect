@@ -80,11 +80,6 @@ function App() {
           <Route path="/register" element={<Register />} />
           
           {/* Protected Routes */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
           
           <Route path="/dashboard" element={
             <ProtectedRoute>
