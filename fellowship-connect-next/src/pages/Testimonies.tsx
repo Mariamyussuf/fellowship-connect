@@ -50,8 +50,10 @@ const Testimonies: React.FC = () => {
   };
 
   const handleViewTestimony = (testimony: Testimony) => {
-    // Increment view count
-    testimonyService.incrementViewCount(testimony.id);
+    // Increment view count only if testimony has an id
+    if (testimony.id) {
+      testimonyService.incrementViewCount(testimony.id);
+    }
   };
 
   const filteredTestimonies = testimonies.filter(testimony => {
