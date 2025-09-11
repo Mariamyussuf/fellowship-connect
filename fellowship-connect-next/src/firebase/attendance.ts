@@ -1,6 +1,73 @@
-import { addDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { db } from './config';
-import type { AttendanceRecord, VisitorInfo } from '../types';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  limit,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import type { AttendanceRecord, QRCodeData, VisitorInfo } from '../types';
+
+// Create a new attendance record
+export const createAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'attendance'), {
+      ...record,
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...record, createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error creating attendance record:', error);
+    throw error;
+  }
+};
+
+// Get attendance records for a specific event
+export const getAttendanceByEvent = async (eventId: string) => {
+  try {
+    const q = query(
+      collection(db, 'attendance'),
+      where('eventId', '==', eventId),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching attendance records:', error);
+    throw error;
+  }
+};
+
+// Get recent attendance records for a user
+export const getUserAttendance = async (userId: string, limitCount = 10) => {
+  try {
+    const q = query(
+      collection(db, 'attendance'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching user attendance:', error);
+    throw error;
+  }
+};
+
+// Generate QR code data for an event
+export const generateQRCodeData = async (eventId: string, eventName: string): Promise<QRCodeData> => {
+  const qrData: QRCodeData = {
+    eventId,
+    eventName,
+    timestamp: Date.now(),
+    expiresAt: Date.now() + (2 * 60 * 60 * 1000), // Expires in 2 hours
+  };
+  return qrData;
+};
 
 /**
  * Check-in service for attendance tracking
@@ -140,16 +207,21 @@ export const attendanceService = {
   },
   
   /**
-   * Gets attendance records for a specific event
+   * Gets attendance records for a specific date range
    * 
-   * @param eventId - The ID of the event
-   * @returns An array of attendance records for the event
+   * @param startDate - The start date for the query
+   * @param endDate - The end date for the query
+   * @returns An array of attendance records for the date range
    */
-  async getEventAttendance(eventId: string): Promise<AttendanceRecord[]> {
+  async getAttendanceByDateRange(startDate: Date, endDate: Date): Promise<AttendanceRecord[]> {
     try {
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+      
       const attendanceQuery = query(
         collection(db, 'attendance'),
-        where('eventId', '==', eventId),
+        where('checkInTime', '>=', startStr),
+        where('checkInTime', '<=', endStr),
         orderBy('checkInTime', 'desc')
       );
       
@@ -159,25 +231,23 @@ export const attendanceService = {
         ...doc.data() 
       } as AttendanceRecord));
     } catch (error) {
-      console.error('Error getting event attendance:', error);
+      console.error('Error getting attendance by date range:', error);
       throw error;
     }
   },
   
   /**
-   * Gets attendance records for a specific member
+   * Gets all attendance records for a specific user
    * 
-   * @param userId - The ID of the member
-   * @param limit - Optional limit on the number of records to return
-   * @returns An array of attendance records for the member
+   * @param userId - The ID of the user
+   * @returns An array of attendance records for the user
    */
-  async getMemberAttendance(userId: string, resultLimit: number = 20): Promise<AttendanceRecord[]> {
+  async getUserAttendanceHistory(userId: string): Promise<AttendanceRecord[]> {
     try {
       const attendanceQuery = query(
         collection(db, 'attendance'),
         where('userId', '==', userId),
-        orderBy('checkInTime', 'desc'),
-        limit(resultLimit)
+        orderBy('checkInTime', 'desc')
       );
       
       const querySnapshot = await getDocs(attendanceQuery);
@@ -186,34 +256,7 @@ export const attendanceService = {
         ...doc.data() 
       } as AttendanceRecord));
     } catch (error) {
-      console.error('Error getting member attendance:', error);
-      throw error;
-    }
-  },
-  
-  /**
-   * Gets records for first-time visitors
-   * 
-   * @param resultLimit - Optional limit on the number of records to return
-   * @returns An array of attendance records for first-time visitors
-   */
-  async getFirstTimeVisitors(resultLimit: number = 20): Promise<AttendanceRecord[]> {
-    try {
-      const visitorsQuery = query(
-        collection(db, 'attendance'),
-        where('isVisitor', '==', true),
-        where('visitorInfo.isFirstTime', '==', true),
-        orderBy('checkInTime', 'desc'),
-        limit(resultLimit)
-      );
-      
-      const querySnapshot = await getDocs(visitorsQuery);
-      return querySnapshot.docs.map(doc => ({ 
-        id: doc.id,
-        ...doc.data() 
-      } as AttendanceRecord));
-    } catch (error) {
-      console.error('Error getting first-time visitors:', error);
+      console.error('Error getting user attendance history:', error);
       throw error;
     }
   }

@@ -1,24 +1,142 @@
 import { 
   collection, 
-  getDocs, 
   query, 
   where, 
-  orderBy, 
-  limit,
-  doc,
-  updateDoc,
+  getDocs, 
+  doc, 
+  updateDoc, 
   deleteDoc,
+  orderBy,
+  limit,
+  startAfter,
   QueryConstraint
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import type { 
-  FellowshipUser, 
-  AttendanceRecord, 
-  PrayerRequest,
-  WelfareRequest,
-  EvangelismReport,
-  QRCodeSession
-} from '../types';
+import { db } from '../lib/firebase';
+import type { FellowshipUser, AttendanceRecord, PrayerRequest, Testimony, EvangelismReport, QRCodeSession, WelfareRequest } from '../types';
+
+// Get all users with pagination
+export const getAllUsers = async (lastDoc: any = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'users'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FellowshipUser));
+    return { users, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+};
+
+// Get user by ID
+export const getUserById = async (userId: string) => {
+  try {
+    const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
+    if (!userDoc.empty) {
+      return { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as FellowshipUser;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    throw error;
+  }
+};
+
+// Update user role
+export const updateUserRole = async (userId: string, role: 'member' | 'admin' | 'super-admin') => {
+  try {
+    // Find user document by uid field
+    const userQuery = query(collection(db, 'users'), where('uid', '==', userId));
+    const userSnapshot = await getDocs(userQuery);
+    
+    if (!userSnapshot.empty) {
+      const userDoc = userSnapshot.docs[0];
+      await updateDoc(doc(db, 'users', userDoc.id), { role });
+      return { id: userDoc.id, ...userDoc.data(), role };
+    } else {
+      throw new Error('User not found');
+    }
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    throw error;
+  }
+};
+
+// Delete user
+export const deleteUser = async (userId: string) => {
+  try {
+    // Find user document by uid field
+    const userQuery = query(collection(db, 'users'), where('uid', '==', userId));
+    const userSnapshot = await getDocs(userQuery);
+    
+    if (!userSnapshot.empty) {
+      const userDoc = userSnapshot.docs[0];
+      await deleteDoc(doc(db, 'users', userDoc.id));
+      return true;
+    } else {
+      throw new Error('User not found');
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+
+// Get recent attendance records
+export const getRecentAttendance = async (limitCount = 20) => {
+  try {
+    const q = query(
+      collection(db, 'attendance'),
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching attendance records:', error);
+    throw error;
+  }
+};
+
+// Get pending prayer requests
+export const getPendingPrayerRequests = async () => {
+  try {
+    const q = query(
+      collection(db, 'prayerRequests'),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PrayerRequest));
+  } catch (error) {
+    console.error('Error fetching prayer requests:', error);
+    throw error;
+  }
+};
+
+// Get pending testimonies
+export const getPendingTestimonies = async () => {
+  try {
+    const q = query(
+      collection(db, 'testimonies'),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimony));
+  } catch (error) {
+    console.error('Error fetching testimonies:', error);
+    throw error;
+  }
+};
 
 /**
  * Service for admin operations including member management, reporting, and system oversight

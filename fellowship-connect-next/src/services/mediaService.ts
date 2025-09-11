@@ -1,22 +1,115 @@
 import { 
   collection, 
-  addDoc, 
-  getDocs, 
   query, 
   where, 
+  getDocs, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc,
   orderBy, 
   limit,
-  doc,
-  updateDoc,
-  getDoc,
+  startAfter,
   Timestamp,
+  getDoc,
   increment
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import type { 
-  Sermon, 
-  Resource 
-} from '../types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
+import type { MediaItem, Resource, Sermon } from '../types';
+
+// Upload media file and create record
+export const uploadMedia = async (file: File, metadata: Omit<MediaItem, 'id' | 'url' | 'createdAt'>) => {
+  try {
+    // Create a storage reference
+    const storageRef = ref(storage, `media/${Date.now()}_${file.name}`);
+    
+    // Upload file to Firebase Storage
+    const snapshot = await uploadBytes(storageRef, file);
+    
+    // Get download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    // Create media record in Firestore
+    const docRef = await addDoc(collection(db, 'media'), {
+      ...metadata,
+      url: downloadURL,
+      createdAt: Timestamp.now(),
+    });
+    
+    return { id: docRef.id, ...metadata, url: downloadURL, createdAt: Timestamp.now() } as MediaItem;
+  } catch (error) {
+    console.error('Error uploading media:', error);
+    throw error;
+  }
+};
+
+// Get media items with pagination
+export const getMediaItems = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'media'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const mediaItems = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaItem));
+    return { mediaItems, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching media items:', error);
+    throw error;
+  }
+};
+
+// Get media items by category
+export const getMediaByCategory = async (category: string, lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'media'),
+      where('category', '==', category),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const mediaItems = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaItem));
+    return { mediaItems, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching media by category:', error);
+    throw error;
+  }
+};
+
+// Update media item
+export const updateMediaItem = async (mediaId: string, updates: Partial<MediaItem>) => {
+  try {
+    await updateDoc(doc(db, 'media', mediaId), { ...updates, updatedAt: Timestamp.now() });
+  } catch (error) {
+    console.error('Error updating media item:', error);
+    throw error;
+  }
+};
+
+// Delete media item
+export const deleteMediaItem = async (mediaId: string) => {
+  try {
+    // Note: This only deletes the Firestore record, not the actual file in Storage
+    // In a production app, you might want to delete the file from Storage as well
+    await deleteDoc(doc(db, 'media', mediaId));
+  } catch (error) {
+    console.error('Error deleting media item:', error);
+    throw error;
+  }
+};
 
 /**
  * Service for managing media content including sermons, resources, and streaming

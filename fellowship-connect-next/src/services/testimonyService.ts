@@ -1,19 +1,113 @@
 import { 
   collection, 
-  addDoc, 
-  getDocs, 
   query, 
   where, 
+  getDocs, 
+  doc, 
+  addDoc, 
+  updateDoc, 
   orderBy, 
   limit,
-  doc,
-  updateDoc,
-  deleteDoc,
+  startAfter,
   Timestamp,
-  QueryConstraint
+  QueryConstraint,
+  deleteDoc
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db } from '../lib/firebase';
 import type { Testimony } from '../types';
+
+// Create a new testimony
+export const createTestimony = async (testimony: Omit<Testimony, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'testimonies'), {
+      ...testimony,
+      status: 'pending',
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...testimony, status: 'pending', createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error creating testimony:', error);
+    throw error;
+  }
+};
+
+// Get testimonies for a user with pagination
+export const getUserTestimonies = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'testimonies'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const testimonies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimony));
+    return { testimonies, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching user testimonies:', error);
+    throw error;
+  }
+};
+
+// Get all testimonies for admin with pagination
+export const getAllTestimonies = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'testimonies'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const testimonies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimony));
+    return { testimonies, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching all testimonies:', error);
+    throw error;
+  }
+};
+
+// Get approved testimonies for public display with pagination
+export const getApprovedTestimonies = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'testimonies'),
+      where('status', '==', 'approved'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const testimonies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimony));
+    return { testimonies, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching approved testimonies:', error);
+    throw error;
+  }
+};
+
+// Update testimony status
+export const updateTestimonyStatus = async (testimonyId: string, status: 'approved' | 'rejected' | 'pending') => {
+  try {
+    await updateDoc(doc(db, 'testimonies', testimonyId), { status, updatedAt: Timestamp.now() });
+  } catch (error) {
+    console.error('Error updating testimony status:', error);
+    throw error;
+  }
+};
 
 /**
  * Service for testimony management including admin registration and moderation

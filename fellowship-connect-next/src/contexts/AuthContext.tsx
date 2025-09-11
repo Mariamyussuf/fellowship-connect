@@ -3,7 +3,7 @@
 import { createContext, useState, useEffect, useContext, type ReactNode } from 'react';
 import { type User, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { initFirebase, auth as firebaseAuth, db as firebaseDb } from '../lib/firebase';
 
 interface FellowshipUser {
   id?: string;
@@ -58,10 +58,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<FellowshipUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // Initialize Firebase
+        await initFirebase();
+        setAuthInitialized(true);
+        console.log('Firebase auth initialized successfully');
+      } catch (error) {
+        console.error('Firebase initialization error:', error);
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!authInitialized) return;
+
     // Check if Firebase auth is properly initialized
-    if (!auth) {
+    if (!firebaseAuth) {
       console.error('Firebase auth is not initialized');
       setLoading(false);
       return;
@@ -69,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     console.log('Initializing auth state listener');
     
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
       console.log('Auth state changed:', user);
       setCurrentUser(user);
       
@@ -79,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         document.cookie = "session=true; path=/";
         
         // Check if Firestore is properly initialized
-        if (!db) {
+        if (!firebaseDb) {
           console.error('Firebase Firestore is not initialized');
           setLoading(false);
           return;
@@ -87,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // Fetch additional user profile data from Firestore
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          const userDoc = await getDoc(doc(firebaseDb, 'users', user.uid));
           if (userDoc.exists()) {
             setUserProfile(userDoc.data() as FellowshipUser);
           } else {
@@ -101,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               active: true,
             };
             setUserProfile(newUserProfile);
-            await setDoc(doc(db, 'users', user.uid), newUserProfile);
+            await setDoc(doc(firebaseDb, 'users', user.uid), newUserProfile);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
@@ -116,18 +135,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [authInitialized]);
 
   const login = async (email: string, password: string) => {
     console.log('Attempting to login with email:', email);
     
+    // Wait for Firebase auth to be initialized
+    if (!authInitialized) {
+      throw new Error('Firebase auth is not yet initialized');
+    }
+    
     // Check if Firebase auth is properly initialized
-    if (!auth) {
+    if (!firebaseAuth) {
       throw new Error('Firebase auth is not initialized');
     }
     
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
       console.log('Login successful:', userCredential);
     } catch (error) {
       console.error('Login error:', error);
@@ -138,17 +162,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (email: string, password: string) => {
     console.log('Attempting to signup with email:', email);
     
+    // Wait for Firebase auth to be initialized
+    if (!authInitialized) {
+      throw new Error('Firebase auth is not yet initialized');
+    }
+    
     // Check if Firebase auth is properly initialized
-    if (!auth) {
+    if (!firebaseAuth) {
       throw new Error('Firebase auth is not initialized');
     }
     
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       const user = userCredential.user;
       
       // Check if Firestore is properly initialized
-      if (!db) {
+      if (!firebaseDb) {
         throw new Error('Firebase Firestore is not initialized');
       }
       
@@ -160,7 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         active: true,
       };
       
-      await setDoc(doc(db, 'users', user.uid), newUserProfile);
+      await setDoc(doc(firebaseDb, 'users', user.uid), newUserProfile);
       console.log('Signup successful:', userCredential);
     } catch (error) {
       console.error('Signup error:', error);
@@ -169,14 +198,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    // Wait for Firebase auth to be initialized
+    if (!authInitialized) {
+      console.warn('Firebase auth is not yet initialized, cannot logout');
+      return;
+    }
+    
     // Check if Firebase auth is properly initialized
-    if (!auth) {
+    if (!firebaseAuth) {
       console.warn('Firebase auth is not initialized, cannot logout');
       return;
     }
     
     try {
-      await signOut(auth);
+      await signOut(firebaseAuth);
       // Remove session cookie if it exists
       document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       console.log('Logout successful');

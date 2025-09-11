@@ -1,28 +1,141 @@
 import { 
   collection, 
-  addDoc, 
-  getDocs, 
   query, 
   where, 
+  getDocs, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
   orderBy, 
   limit,
-  doc,
-  updateDoc,
-  getDoc,
-  Timestamp 
+  startAfter,
+  Timestamp,
+  getDoc
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import type { 
-  AttendanceRecord, 
-  QRCodeSession, 
-  VisitorInfo 
-} from '../types';
-import { 
-  generateQRCodeSession,
-  validateQRCodeSession,
-  canUserCheckIn,
-  generateWordOfTheDay
-} from '../utils/qrCodeUtils';
+import { db } from '../lib/firebase';
+import type { AttendanceRecord, OfflineAttendanceRecord, QRCodeSession, VisitorInfo } from '../types';
+import { generateQRCodeSession, generateWordOfTheDay, validateQRCodeSession, canUserCheckIn } from '@/utils/qrCodeUtils';
+
+// Create a new attendance record
+export const createAttendanceRecord = async (record: Omit<AttendanceRecord, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'attendance'), {
+      ...record,
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...record, createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error creating attendance record:', error);
+    throw error;
+  }
+};
+
+// Get attendance records for a specific event
+export const getAttendanceByEvent = async (eventId: string) => {
+  try {
+    const q = query(
+      collection(db, 'attendance'),
+      where('eventId', '==', eventId),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching attendance records:', error);
+    throw error;
+  }
+};
+
+// Get recent attendance records for a user with pagination
+export const getUserAttendance = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'attendance'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+    return { records, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching user attendance:', error);
+    throw error;
+  }
+};
+
+// Get all attendance records for admin with pagination
+export const getAllAttendanceRecords = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'attendance'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+    return { records, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching all attendance records:', error);
+    throw error;
+  }
+};
+
+// Save offline attendance record
+export const saveOfflineAttendance = async (record: OfflineAttendanceRecord) => {
+  try {
+    // Store in offlineAttendance collection
+    const docRef = await addDoc(collection(db, 'offlineAttendance'), {
+      ...record,
+      synced: false,
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...record, synced: false, createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error saving offline attendance:', error);
+    throw error;
+  }
+};
+
+// Get pending offline attendance records
+export const getPendingOfflineAttendance = async () => {
+  try {
+    const q = query(
+      collection(db, 'offlineAttendance'),
+      where('synced', '==', false),
+      orderBy('createdAt', 'asc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OfflineAttendanceRecord));
+  } catch (error) {
+    console.error('Error fetching offline attendance records:', error);
+    throw error;
+  }
+};
+
+// Mark offline attendance record as synced
+export const markOfflineAttendanceAsSynced = async (recordId: string) => {
+  try {
+    await updateDoc(doc(db, 'offlineAttendance', recordId), {
+      synced: true,
+      syncedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error marking offline attendance as synced:', error);
+    throw error;
+  }
+};
 
 /**
  * Service for managing attendance records and QR code sessions

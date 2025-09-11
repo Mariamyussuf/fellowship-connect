@@ -6,7 +6,7 @@ import {
   uploadBytesResumable,
   type UploadTaskSnapshot 
 } from 'firebase/storage';
-import { storage } from './config';
+import { storage } from '../lib/firebase';
 
 // Type for tracking upload progress
 export interface UploadProgress {

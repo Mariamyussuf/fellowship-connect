@@ -1,23 +1,217 @@
 import { 
   collection, 
-  addDoc, 
-  getDocs, 
   query, 
   where, 
+  getDocs, 
+  doc, 
+  addDoc, 
+  updateDoc, 
   orderBy, 
   limit,
-  doc,
-  updateDoc,
+  startAfter,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import type { 
-  PrayerRequest, 
-  WelfareRequest, 
-  EvangelismReport,
-  MailingListSubscriber,
-  Notification 
-} from '../types';
+import { db } from '../lib/firebase';
+import type { PrayerRequest, WelfareSupport, EvangelismReport, Notification, WelfareRequest, MailingListSubscriber } from '../types';
+
+// Create a new prayer request
+export const createPrayerRequest = async (request: Omit<PrayerRequest, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'prayerRequests'), {
+      ...request,
+      status: 'pending',
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...request, status: 'pending', createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error creating prayer request:', error);
+    throw error;
+  }
+};
+
+// Get prayer requests for a user with pagination
+export const getUserPrayerRequests = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'prayerRequests'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PrayerRequest));
+    return { requests, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching user prayer requests:', error);
+    throw error;
+  }
+};
+
+// Get all prayer requests for admin with pagination
+export const getAllPrayerRequests = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'prayerRequests'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PrayerRequest));
+    return { requests, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching all prayer requests:', error);
+    throw error;
+  }
+};
+
+// Update prayer request status
+export const updatePrayerRequestStatus = async (requestId: string, status: 'approved' | 'rejected' | 'pending') => {
+  try {
+    await updateDoc(doc(db, 'prayerRequests', requestId), { status, updatedAt: Timestamp.now() });
+  } catch (error) {
+    console.error('Error updating prayer request status:', error);
+    throw error;
+  }
+};
+
+// Create a new welfare support request
+export const createWelfareSupportRequest = async (request: Omit<WelfareSupport, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'welfareSupport'), {
+      ...request,
+      status: 'pending',
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...request, status: 'pending', createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error creating welfare support request:', error);
+    throw error;
+  }
+};
+
+// Get welfare support requests for a user with pagination
+export const getUserWelfareSupportRequests = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'welfareSupport'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WelfareSupport));
+    return { requests, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching user welfare support requests:', error);
+    throw error;
+  }
+};
+
+// Get all welfare support requests for admin with pagination
+export const getAllWelfareSupportRequests = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'welfareSupport'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WelfareSupport));
+    return { requests, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching all welfare support requests:', error);
+    throw error;
+  }
+};
+
+// Update welfare support request status
+export const updateWelfareSupportStatus = async (requestId: string, status: 'approved' | 'rejected' | 'pending') => {
+  try {
+    await updateDoc(doc(db, 'welfareSupport', requestId), { status, updatedAt: Timestamp.now() });
+  } catch (error) {
+    console.error('Error updating welfare support request status:', error);
+    throw error;
+  }
+};
+
+// Create a new evangelism report
+export const createEvangelismReport = async (report: Omit<EvangelismReport, 'id' | 'createdAt'>) => {
+  try {
+    const docRef = await addDoc(collection(db, 'evangelismReports'), {
+      ...report,
+      createdAt: Timestamp.now(),
+    });
+    return { id: docRef.id, ...report, createdAt: Timestamp.now() };
+  } catch (error) {
+    console.error('Error creating evangelism report:', error);
+    throw error;
+  }
+};
+
+// Get evangelism reports for a user with pagination
+export const getUserEvangelismReports = async (userId: string, lastDoc: any = null, pageSize = 10) => {
+  try {
+    let q = query(
+      collection(db, 'evangelismReports'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const reports = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EvangelismReport));
+    return { reports, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching user evangelism reports:', error);
+    throw error;
+  }
+};
+
+// Get all evangelism reports for admin with pagination
+export const getAllEvangelismReports = async (lastDoc: any = null, pageSize = 20) => {
+  try {
+    let q = query(
+      collection(db, 'evangelismReports'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
+    );
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const reports = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EvangelismReport));
+    return { reports, lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] };
+  } catch (error) {
+    console.error('Error fetching all evangelism reports:', error);
+    throw error;
+  }
+};
 
 /**
  * Service for managing engagement features including prayer requests,
@@ -86,41 +280,33 @@ export class EngagementService {
       }
 
       const querySnapshot = await getDocs(q);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as PrayerRequest[];
-
+      return querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as PrayerRequest));
     } catch (error) {
       console.error('Error getting prayer requests:', error);
       return [];
     }
   }
 
-  async markPrayerRequestAnswered(
-    requestId: string,
-    answerNote?: string
-  ): Promise<boolean> {
+  async updatePrayerRequest(
+    requestId: string, 
+    updates: Partial<PrayerRequest>
+  ): Promise<void> {
     try {
-      const requestRef = doc(db, 'prayerRequests', requestId);
-      await updateDoc(requestRef, {
-        isAnswered: true,
-        answeredAt: Timestamp.now(),
-        answerNote: answerNote || '',
-        updatedAt: Timestamp.now()
-      });
-      return true;
+      const prayerRef = doc(db, 'prayerRequests', requestId);
+      await updateDoc(prayerRef, updates);
     } catch (error) {
-      console.error('Error marking prayer request as answered:', error);
-      return false;
+      console.error('Error updating prayer request:', error);
+      throw error;
     }
   }
 
   // WELFARE REQUESTS
   async createWelfareRequest(requestData: Omit<WelfareRequest, 'id'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'welfareRequests'), {
+      const docRef = await addDoc(collection(db, 'welfareSupport'), {
         ...requestData,
         status: 'pending',
         createdAt: Timestamp.now()
@@ -138,14 +324,12 @@ export class EngagementService {
       userId?: string;
       requestType?: string;
       status?: string;
-      urgency?: string;
-      assignedTo?: string;
       limit?: number;
     } = {}
   ): Promise<WelfareRequest[]> {
     try {
       let q = query(
-        collection(db, 'welfareRequests'),
+        collection(db, 'welfareSupport'),
         orderBy('createdAt', 'desc')
       );
 
@@ -161,68 +345,31 @@ export class EngagementService {
         q = query(q, where('status', '==', filters.status));
       }
 
-      if (filters.urgency) {
-        q = query(q, where('urgency', '==', filters.urgency));
-      }
-
-      if (filters.assignedTo) {
-        q = query(q, where('assignedTo', '==', filters.assignedTo));
-      }
-
       if (filters.limit) {
         q = query(q, limit(filters.limit));
       }
 
       const querySnapshot = await getDocs(q);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as WelfareRequest[];
-
+      return querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as WelfareRequest));
     } catch (error) {
       console.error('Error getting welfare requests:', error);
       return [];
     }
   }
 
-  async updateWelfareRequestStatus(
-    requestId: string,
-    status: 'pending' | 'in-progress' | 'resolved' | 'closed',
-    assignedTo?: string,
-    resolutionNotes?: string
-  ): Promise<boolean> {
+  async updateWelfareRequest(
+    requestId: string, 
+    updates: Partial<WelfareRequest>
+  ): Promise<void> {
     try {
-      const requestRef = doc(db, 'welfareRequests', requestId);
-      
-      // Build update data object
-      const updateData: { 
-        status: string; 
-        updatedAt: Timestamp;
-        assignedTo?: string;
-        assignedAt?: Timestamp;
-        resolutionNotes?: string;
-        resolvedAt?: Timestamp;
-      } = {
-        status,
-        updatedAt: Timestamp.now()
-      };
-
-      if (assignedTo) {
-        updateData.assignedTo = assignedTo;
-        updateData.assignedAt = Timestamp.now();
-      }
-
-      if (status === 'resolved' && resolutionNotes) {
-        updateData.resolutionNotes = resolutionNotes;
-        updateData.resolvedAt = Timestamp.now();
-      }
-
-      await updateDoc(requestRef, updateData);
-      return true;
+      const welfareRef = doc(db, 'welfareSupport', requestId);
+      await updateDoc(welfareRef, updates);
     } catch (error) {
-      console.error('Error updating welfare request status:', error);
-      return false;
+      console.error('Error updating welfare request:', error);
+      throw error;
     }
   }
 
@@ -231,8 +378,6 @@ export class EngagementService {
     try {
       const docRef = await addDoc(collection(db, 'evangelismReports'), {
         ...reportData,
-        status: 'pending',
-        featured: false,
         createdAt: Timestamp.now()
       });
 
@@ -247,7 +392,6 @@ export class EngagementService {
     filters: {
       userId?: string;
       status?: string;
-      featured?: boolean;
       limit?: number;
     } = {}
   ): Promise<EvangelismReport[]> {
@@ -265,69 +409,70 @@ export class EngagementService {
         q = query(q, where('status', '==', filters.status));
       }
 
-      if (filters.featured !== undefined) {
-        q = query(q, where('featured', '==', filters.featured));
-      }
-
       if (filters.limit) {
         q = query(q, limit(filters.limit));
       }
 
       const querySnapshot = await getDocs(q);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as EvangelismReport[];
-
+      return querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as EvangelismReport));
     } catch (error) {
       console.error('Error getting evangelism reports:', error);
       return [];
     }
   }
 
-  async moderateEvangelismReport(
-    reportId: string,
-    status: 'approved' | 'published' | 'rejected',
-    moderatedBy: string,
-    moderationNotes?: string,
-    featured: boolean = false
-  ): Promise<boolean> {
+  async updateEvangelismReport(
+    reportId: string, 
+    updates: Partial<EvangelismReport>
+  ): Promise<void> {
     try {
       const reportRef = doc(db, 'evangelismReports', reportId);
-      await updateDoc(reportRef, {
-        status,
-        moderatedBy,
-        moderatedAt: Timestamp.now(),
-        moderationNotes: moderationNotes || '',
-        featured,
-        updatedAt: Timestamp.now()
-      });
-      return true;
+      await updateDoc(reportRef, updates);
     } catch (error) {
-      console.error('Error moderating evangelism report:', error);
-      return false;
+      console.error('Error updating evangelism report:', error);
+      throw error;
     }
   }
 
   // MAILING LIST
-  async subscribeToMailingList(subscriberData: Omit<MailingListSubscriber, 'id'>): Promise<string> {
+  async subscribeToMailingList(
+    email: string,
+    phoneNumber?: string,
+    fullName?: string,
+    categories: string[] = ['general']
+  ): Promise<string> {
     try {
-      // Check if email already exists
+      // Check if subscriber already exists
       const existingQuery = query(
         collection(db, 'mailingList'),
-        where('email', '==', subscriberData.email),
-        where('isActive', '==', true)
+        where('email', '==', email)
       );
       
       const existingSnapshot = await getDocs(existingQuery);
       
       if (!existingSnapshot.empty) {
-        throw new Error('Email already subscribed');
+        const existingDoc = existingSnapshot.docs[0];
+        // Update existing subscription
+        await updateDoc(doc(db, 'mailingList', existingDoc.id), {
+          phoneNumber: phoneNumber || existingDoc.data().phoneNumber,
+          fullName: fullName || existingDoc.data().fullName,
+          categories,
+          isActive: true,
+          subscribedAt: Timestamp.now()
+        });
+        return existingDoc.id;
       }
 
+      // Create new subscription
       const docRef = await addDoc(collection(db, 'mailingList'), {
-        ...subscriberData,
+        email,
+        phoneNumber: phoneNumber || null,
+        fullName: fullName || null,
+        categories,
+        subscriptionType: phoneNumber ? 'both' : 'email',
         isActive: true,
         subscribedAt: Timestamp.now()
       });
@@ -335,7 +480,35 @@ export class EngagementService {
       return docRef.id;
     } catch (error) {
       console.error('Error subscribing to mailing list:', error);
-      throw error;
+      throw new Error('Failed to subscribe to mailing list');
+    }
+  }
+
+  async getMailingListSubscribers(
+    filters: {
+      isActive?: boolean;
+      category?: string;
+    } = {}
+  ): Promise<MailingListSubscriber[]> {
+    try {
+      let q = query(collection(db, 'mailingList'));
+
+      if (filters.isActive !== undefined) {
+        q = query(q, where('isActive', '==', filters.isActive));
+      }
+
+      if (filters.category) {
+        q = query(q, where('categories', 'array-contains', filters.category));
+      }
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as MailingListSubscriber));
+    } catch (error) {
+      console.error('Error getting mailing list subscribers:', error);
+      return [];
     }
   }
 
@@ -343,18 +516,17 @@ export class EngagementService {
     try {
       const q = query(
         collection(db, 'mailingList'),
-        where('email', '==', email),
-        where('isActive', '==', true)
+        where('email', '==', email)
       );
-
+      
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
         return false;
       }
 
-      const subscriber = querySnapshot.docs[0];
-      await updateDoc(subscriber.ref, {
+      const docRef = doc(db, 'mailingList', querySnapshot.docs[0].id);
+      await updateDoc(docRef, {
         isActive: false,
         unsubscribedAt: Timestamp.now()
       });
@@ -366,55 +538,11 @@ export class EngagementService {
     }
   }
 
-  async getMailingListSubscribers(
-    filters: {
-      isActive?: boolean;
-      subscriptionType?: string;
-      categories?: string[];
-      limit?: number;
-    } = {}
-  ): Promise<MailingListSubscriber[]> {
-    try {
-      let q = query(
-        collection(db, 'mailingList'),
-        orderBy('subscribedAt', 'desc')
-      );
-
-      if (filters.isActive !== undefined) {
-        q = query(q, where('isActive', '==', filters.isActive));
-      }
-
-      if (filters.subscriptionType) {
-        q = query(q, where('subscriptionType', '==', filters.subscriptionType));
-      }
-
-      if (filters.categories && filters.categories.length > 0) {
-        q = query(q, where('categories', 'array-contains-any', filters.categories));
-      }
-
-      if (filters.limit) {
-        q = query(q, limit(filters.limit));
-      }
-
-      const querySnapshot = await getDocs(q);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as MailingListSubscriber[];
-
-    } catch (error) {
-      console.error('Error getting mailing list subscribers:', error);
-      return [];
-    }
-  }
-
   // NOTIFICATIONS
-  async createNotification(notificationData: Omit<Notification, 'id'>): Promise<string> {
+  async createNotification(notificationData: Omit<Notification, 'id' | 'createdAt'>): Promise<string> {
     try {
       const docRef = await addDoc(collection(db, 'notifications'), {
         ...notificationData,
-        isRead: false,
         createdAt: Timestamp.now()
       });
 
@@ -457,7 +585,7 @@ export class EngagementService {
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Notification[];
+      } as Notification));
 
     } catch (error) {
       console.error('Error getting user notifications:', error);

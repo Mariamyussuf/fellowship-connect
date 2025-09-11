@@ -12,7 +12,7 @@ import {
   WhereFilterOp
 } from 'firebase/firestore';
 import type { DocumentData, WithFieldValue } from 'firebase/firestore';
-import { db } from './config';
+import { db } from '../lib/firebase';
 
 // Generic function to get all documents from a collection
 export const getCollection = async <T>(collectionName: string): Promise<T[]> => {

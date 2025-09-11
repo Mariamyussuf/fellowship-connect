@@ -47,7 +47,7 @@ export const generateWordOfTheDay = (date: Date, secretKey?: string): string => 
 };
 
 // Define interface for QR code data that includes dynamically added properties
-interface QRCodeData extends Partial<QRCodeSession> {
+interface QRCodeSessionData extends Partial<QRCodeSession> {
   sessionId?: string;
   token?: string;
   timestamp?: string;
@@ -55,7 +55,7 @@ interface QRCodeData extends Partial<QRCodeSession> {
 
 // Create QR code data with embedded information
 export const createQRCodeData = (session: Partial<QRCodeSession>): string => {
-  const qrData: QRCodeData = {
+  const qrData: QRCodeSessionData = {
     sessionId: session.id,
     eventName: session.eventName,
     eventType: session.eventType,
@@ -70,7 +70,7 @@ export const createQRCodeData = (session: Partial<QRCodeSession>): string => {
 };
 
 // Parse and validate QR code data
-export const parseQRCodeData = (qrCodeString: string): QRCodeData => {
+export const parseQRCodeData = (qrCodeString: string): QRCodeSessionData => {
   try {
     const decoded = atob(qrCodeString);
     return JSON.parse(decoded);
@@ -85,7 +85,7 @@ export const validateQRCodeSession = (
   qrCodeData: string,
   currentWordOfTheDay: string,
   allowedTimeWindow: number = 30 // minutes
-): { isValid: boolean; error?: string; sessionData?: QRCodeData } => {
+): { isValid: boolean; error?: string; sessionData?: QRCodeSessionData } => {
   try {
     const sessionData = parseQRCodeData(qrCodeData);
     

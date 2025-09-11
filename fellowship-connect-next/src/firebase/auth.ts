@@ -7,7 +7,7 @@ import {
   type User
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from './config';
+import { auth, db } from '../lib/firebase';
 import type { FellowshipUser } from '../types';
 
 // Register a new user

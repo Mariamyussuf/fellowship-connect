@@ -56,6 +56,11 @@ export interface AttendanceRecord {
   createdAt?: string;
 }
 
+export interface OfflineAttendanceRecord extends AttendanceRecord {
+  synced?: boolean;
+  syncedAt?: string;
+}
+
 export interface VisitorInfo {
   name: string;
   fullName?: string;
@@ -64,6 +69,14 @@ export interface VisitorInfo {
   invitedBy?: string;
   referredBy?: string;
   isFirstTime: boolean;
+}
+
+// QR Code related types
+export interface QRCodeData {
+  eventId: string;
+  eventName: string;
+  timestamp: number;
+  expiresAt: number;
 }
 
 // Event related types
@@ -106,82 +119,6 @@ export interface PrayerRequest {
   moderatedAt?: string;
 }
 
-// Testimony related types
-export interface Testimony {
-  id: string;
-  memberName: string;
-  memberEmail?: string;
-  title: string;
-  content: string;
-  category: string;
-  dateOfTestimony?: string;
-  location?: string;
-  witnessedBy?: string;
-  tags?: string[];
-  isAnonymous?: boolean;
-  contactPermission?: boolean;
-  mediaUrls?: string[];
-  status: 'pending' | 'approved' | 'rejected';
-  submittedBy: string;
-  submittedAt: Timestamp;
-  moderatedBy?: string | null;
-  moderatedAt?: Timestamp | null;
-  moderationNotes?: string;
-  featured: boolean;
-  viewCount?: number;
-  likes?: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-// Resource related types
-export interface Resource {
-  id?: string;
-  title: string;
-  description: string;
-  category: string;
-  fileURL: string;
-  fileType: string;
-  fileName: string;
-  fileSize: number;
-  uploadedBy: string;
-  createdAt: string;
-  updatedAt?: string;
-  downloadCount?: number;
-}
-
-// Announcement related types
-export interface Announcement {
-  date: string | number | Date;
-  id?: string;
-  title: string;
-  content: string;
-  category?: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt?: string;
-  scheduledFor?: string;
-  expiresAt?: string;
-  important?: boolean;
-}
-
-// Service opportunity related types
-export interface ServiceOpportunity {
-  id?: string;
-  title: string;
-  description: string;
-  date: string;
-  startTime?: string;
-  endTime?: string;
-  location?: string;
-  coordinator: string;
-  coordinatorContact?: string;
-  volunteerLimit?: number;
-  volunteers?: string[];
-  createdAt: string;
-  updatedAt?: string;
-}
-
 // Welfare/Help Request types
 export interface WelfareRequest {
   id?: string;
@@ -202,6 +139,9 @@ export interface WelfareRequest {
   createdAt: string;
   updatedAt?: string;
 }
+
+// Welfare Support type (alias for WelfareRequest)
+export type WelfareSupport = WelfareRequest;
 
 // Evangelism Report types
 export interface EvangelismReport {
@@ -393,4 +333,66 @@ export interface ServiceTime {
   day: string;
   time: string;
   serviceType: string;
+}
+
+// Testimony types
+export interface Testimony {
+  id?: string;
+  userId?: string;
+  userName?: string;
+  title: string;
+  content: string;
+  category: string;
+  isPublic?: boolean;
+  status: 'pending' | 'approved' | 'rejected' | 'archived';
+  approved?: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  submittedBy?: string;
+  submittedAt?: Timestamp | string;
+  moderatedBy?: string | null;
+  moderatedAt?: Timestamp | string | null;
+  moderationNotes?: string;
+  featured?: boolean;
+  viewCount?: number;
+  likes?: number;
+  mediaUrls?: string[];
+  tags?: string[];
+  isAnonymous?: boolean;
+  contactPermission?: boolean;
+  location?: string;
+  witnessedBy?: string;
+  dateOfTestimony?: string;
+  createdAt: Timestamp | string;
+  updatedAt?: Timestamp | string;
+}
+
+// Media/Resource types
+export interface MediaItem {
+  id?: string;
+  title: string;
+  description?: string;
+  url: string;
+  type: 'image' | 'video' | 'audio' | 'document' | 'other';
+  category: string;
+  fileName: string;
+  fileSize?: number;
+  createdAt: Timestamp | string;
+  uploadedBy: string;
+  tags?: string[];
+}
+
+export interface Resource {
+  id?: string;
+  title: string;
+  description: string;
+  url: string;
+  type: 'pdf' | 'doc' | 'ppt' | 'image' | 'other';
+  category: string;
+  fileName: string;
+  fileSize?: number;
+  createdAt: Timestamp | string;
+  uploadedBy: string;
+  downloadCount?: number;
+  tags?: string[];
 }

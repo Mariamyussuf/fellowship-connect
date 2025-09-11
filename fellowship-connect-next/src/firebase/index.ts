@@ -1,5 +1,5 @@
 // Re-export all Firebase services
-export { default as app, auth, db, storage } from './config';
+export { app, auth, db, storage } from '../lib/firebase';
 
 // Auth services
 export * from './auth';
