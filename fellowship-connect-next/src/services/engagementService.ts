@@ -393,6 +393,7 @@ export class EngagementService {
     filters: {
       userId?: string;
       status?: string;
+      featured?: boolean;
       limit?: number;
     } = {}
   ): Promise<EvangelismReport[]> {
@@ -408,6 +409,10 @@ export class EngagementService {
 
       if (filters.status) {
         q = query(q, where('status', '==', filters.status));
+      }
+
+      if (filters.featured !== undefined) {
+        q = query(q, where('featured', '==', filters.featured));
       }
 
       if (filters.limit) {
