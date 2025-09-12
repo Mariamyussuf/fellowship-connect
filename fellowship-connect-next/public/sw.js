@@ -363,7 +363,10 @@ self.addEventListener('notificationclick', event => {
 
 // Message event for communication with main thread
 self.addEventListener('message', event => {
-  console.log('Message received in service worker:', event);
+  // Only log specific message types to reduce console spam
+  if (event.data && (event.data.type === 'TEST_MESSAGE' || event.data.type === 'INTEGRATION_TEST')) {
+    console.log('Message received in service worker:', event.data.type);
+  }
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

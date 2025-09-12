@@ -79,11 +79,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!authInitialized) return;
 
-    // Check if Firebase auth is properly initialized
+    // Check if Firebase auth is properly initialized with a timeout
     if (!firebaseAuth) {
       console.error('Firebase auth is not initialized');
-      setLoading(false);
-      return;
+      // Add a small delay and try again
+      const retryTimer = setTimeout(() => {
+        if (firebaseAuth) {
+          console.log('Firebase auth initialized after delay');
+        } else {
+          console.error('Firebase auth still not initialized after delay');
+          setLoading(false);
+        }
+      }, 1000);
+      return () => clearTimeout(retryTimer);
     }
 
     console.log('Initializing auth state listener');
@@ -142,7 +150,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Wait for Firebase auth to be initialized
     if (!authInitialized) {
-      throw new Error('Firebase auth is not yet initialized');
+      // Wait a bit and try again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!authInitialized) {
+        throw new Error('Firebase auth is not yet initialized');
+      }
     }
     
     // Check if Firebase auth is properly initialized
@@ -164,7 +176,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Wait for Firebase auth to be initialized
     if (!authInitialized) {
-      throw new Error('Firebase auth is not yet initialized');
+      // Wait a bit and try again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!authInitialized) {
+        throw new Error('Firebase auth is not yet initialized');
+      }
     }
     
     // Check if Firebase auth is properly initialized

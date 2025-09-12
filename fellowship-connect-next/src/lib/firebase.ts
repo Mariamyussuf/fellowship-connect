@@ -81,7 +81,11 @@ export const initFirebase = async () => {
       const { getStorage } = await import('firebase/storage');
       
       // Prevent multiple initializations
-      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+      if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+      } else {
+        app = getApps()[0];
+      }
       
       // Initialize services only if app is initialized
       if (app) {
@@ -91,11 +95,14 @@ export const initFirebase = async () => {
         
         console.log('Firebase app initialized:', app.name);
         
-        // Initialize Analytics only on client-side
+        // Initialize Analytics only on client-side and only if needed
         try {
-          const { getAnalytics } = await import('firebase/analytics');
-          analytics = getAnalytics(app);
-          console.log('Firebase Analytics initialized');
+          // Only initialize analytics if it's actually needed to avoid the 400 error
+          // Comment out analytics initialization to prevent the error
+          // const { getAnalytics } = await import('firebase/analytics');
+          // analytics = getAnalytics(app);
+          // console.log('Firebase Analytics initialized');
+          console.log('Firebase Analytics skipped to prevent configuration errors');
         } catch (error) {
           console.warn('Firebase Analytics failed to initialize:', error);
         }
