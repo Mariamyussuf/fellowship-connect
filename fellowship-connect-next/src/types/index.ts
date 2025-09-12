@@ -4,6 +4,7 @@
 
 // User related types
 import { Timestamp } from 'firebase/firestore';
+import { ReactNode } from 'react';
 
 export type UserRole = 'member' | 'admin' | 'super-admin';
 
@@ -348,6 +349,7 @@ export interface ServiceTime {
 
 // Testimony types
 export interface Testimony {
+  memberName: ReactNode;
   id?: string;
   userId?: string;
   userName?: string;
