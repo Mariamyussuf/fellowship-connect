@@ -5,6 +5,7 @@ import { testimonyService } from '../services/testimonyService';
 import TestimonyRegistrationForm from '../components/testimony/TestimonyRegistrationForm';
 import TestimonyCard from '../components/testimony/TestimonyCard';
 import type { Testimony } from '../types';
+import { Timestamp } from 'firebase/firestore';
 
 const TestimonyManagement: React.FC = () => {
   const { isAdmin, userProfile } = useAuth();
@@ -55,8 +56,10 @@ const TestimonyManagement: React.FC = () => {
   const handleViewTestimony = (testimony: Testimony) => {
     setSelectedTestimony(testimony);
     setShowViewModal(true);
-    // Increment view count
-    testimonyService.incrementViewCount(testimony.id);
+    // Increment view count only if testimony has an id
+    if (testimony.id) {
+      testimonyService.incrementViewCount(testimony.id);
+    }
   };
 
   const handleModerateClick = (testimony: Testimony, action: 'approve' | 'reject') => {
@@ -67,7 +70,11 @@ const TestimonyManagement: React.FC = () => {
   };
 
   const handleModerationSubmit = async () => {
-    if (!selectedTestimony || !userProfile?.uid) return;
+    // Add null checks before calling the service
+    if (!selectedTestimony?.id || !userProfile?.uid) {
+      setError('Missing required information for moderation');
+      return;
+    }
 
     try {
       await testimonyService.moderateTestimony(
@@ -87,6 +94,12 @@ const TestimonyManagement: React.FC = () => {
   };
 
   const handleToggleFeatured = async (testimony: Testimony) => {
+    // Add null check for testimony.id
+    if (!testimony.id) {
+      setError('Cannot toggle featured status: testimony ID is missing');
+      return;
+    }
+    
     try {
       await testimonyService.toggleFeatured(testimony.id, !testimony.featured);
       setSuccess(`Testimony ${testimony.featured ? 'unfeatured' : 'featured'} successfully!`);
@@ -311,9 +324,21 @@ const TestimonyManagement: React.FC = () => {
 
               <div className="text-muted small">
                 <div>Views: {selectedTestimony.viewCount || 0} | Likes: {selectedTestimony.likes || 0}</div>
-                <div>Submitted: {selectedTestimony.createdAt?.toDate?.()?.toLocaleString()}</div>
+                <div>Submitted: {
+                  selectedTestimony.createdAt instanceof Timestamp 
+                    ? selectedTestimony.createdAt.toDate().toLocaleString() 
+                    : typeof selectedTestimony.createdAt === 'string' 
+                      ? new Date(selectedTestimony.createdAt).toLocaleString() 
+                      : 'Unknown'
+                }</div>
                 {selectedTestimony.moderatedAt && (
-                  <div>Moderated: {selectedTestimony.moderatedAt.toDate().toLocaleString()}</div>
+                  <div>Moderated: {
+                    selectedTestimony.moderatedAt instanceof Timestamp 
+                      ? selectedTestimony.moderatedAt.toDate().toLocaleString() 
+                      : typeof selectedTestimony.moderatedAt === 'string' 
+                        ? new Date(selectedTestimony.moderatedAt).toLocaleString() 
+                        : 'Unknown'
+                  }</div>
                 )}
               </div>
             </>
