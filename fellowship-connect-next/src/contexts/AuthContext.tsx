@@ -63,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        console.log('Starting Firebase initialization');
         // Initialize Firebase
         await initFirebase();
         setAuthInitialized(true);
@@ -77,72 +78,77 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!authInitialized) return;
-
-    // Check if Firebase auth is properly initialized with a timeout
-    if (!firebaseAuth) {
-      console.error('Firebase auth is not initialized');
-      // Add a small delay and try again
-      const retryTimer = setTimeout(() => {
-        if (firebaseAuth) {
-          console.log('Firebase auth initialized after delay');
-        } else {
-          console.error('Firebase auth still not initialized after delay');
-          setLoading(false);
-        }
-      }, 1000);
-      return () => clearTimeout(retryTimer);
+    if (!authInitialized) {
+      console.log('Auth not yet initialized, waiting...');
+      return;
     }
 
-    console.log('Initializing auth state listener');
+    console.log('Auth initialized, checking Firebase auth object');
     
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-      console.log('Auth state changed:', user);
-      setCurrentUser(user);
-      
-      if (user) {
-        // Set a simple session cookie for middleware compatibility
-        // In production, you'd use Firebase's session management
-        document.cookie = "session=true; path=/";
-        
-        // Check if Firestore is properly initialized
-        if (!firebaseDb) {
-          console.error('Firebase Firestore is not initialized');
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch additional user profile data from Firestore
-        try {
-          const userDoc = await getDoc(doc(firebaseDb, 'users', user.uid));
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as FellowshipUser);
-          } else {
-            // Create a basic profile if user exists but profile doesn't
-            const newUserProfile: FellowshipUser = {
-              uid: user.uid,
-              displayName: user.displayName || undefined,
-              email: user.email || undefined,
-              role: 'member',
-              photoURL: user.photoURL,
-              active: true,
-            };
-            setUserProfile(newUserProfile);
-            await setDoc(doc(firebaseDb, 'users', user.uid), newUserProfile);
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-        }
-      } else {
-        setUserProfile(null);
-        // Remove session cookie on logout
-        document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    // Add a small delay to ensure auth is fully ready
+    const initTimer = setTimeout(async () => {
+      if (!firebaseAuth) {
+        console.error('Firebase auth is not initialized after timeout');
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
-    });
 
-    return unsubscribe;
+      console.log('Initializing auth state listener');
+      
+      const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+        console.log('Auth state changed:', user);
+        setCurrentUser(user);
+        
+        if (user) {
+          // Set a simple session cookie for middleware compatibility
+          // In production, you'd use Firebase's session management
+          document.cookie = "session=true; path=/";
+          
+          // Check if Firestore is properly initialized
+          if (!firebaseDb) {
+            console.error('Firebase Firestore is not initialized');
+            setLoading(false);
+            return;
+          }
+          
+          // Fetch additional user profile data from Firestore
+          try {
+            const userDoc = await getDoc(doc(firebaseDb, 'users', user.uid));
+            if (userDoc.exists()) {
+              setUserProfile(userDoc.data() as FellowshipUser);
+            } else {
+              // Create a basic profile if user exists but profile doesn't
+              const newUserProfile: FellowshipUser = {
+                uid: user.uid,
+                displayName: user.displayName || undefined,
+                email: user.email || undefined,
+                role: 'member',
+                photoURL: user.photoURL,
+                active: true,
+              };
+              setUserProfile(newUserProfile);
+              await setDoc(doc(firebaseDb, 'users', user.uid), newUserProfile);
+            }
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+          }
+        } else {
+          setUserProfile(null);
+          // Remove session cookie on logout
+          document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        }
+        
+        setLoading(false);
+      });
+
+      // Cleanup function
+      return () => {
+        clearTimeout(initTimer);
+        if (unsubscribe && typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      };
+    }, 500); // Small delay to ensure auth is ready
   }, [authInitialized]);
 
   const login = async (email: string, password: string) => {
@@ -150,8 +156,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Wait for Firebase auth to be initialized
     if (!authInitialized) {
+      console.log('Waiting for Firebase auth initialization...');
       // Wait a bit and try again
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       if (!authInitialized) {
         throw new Error('Firebase auth is not yet initialized');
       }
@@ -159,10 +166,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Check if Firebase auth is properly initialized
     if (!firebaseAuth) {
+      console.error('Firebase auth is still not initialized');
       throw new Error('Firebase auth is not initialized');
     }
     
     try {
+      console.log('Calling signInWithEmailAndPassword');
       const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
       console.log('Login successful:', userCredential);
     } catch (error) {
@@ -176,8 +185,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Wait for Firebase auth to be initialized
     if (!authInitialized) {
+      console.log('Waiting for Firebase auth initialization...');
       // Wait a bit and try again
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       if (!authInitialized) {
         throw new Error('Firebase auth is not yet initialized');
       }
@@ -185,10 +195,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Check if Firebase auth is properly initialized
     if (!firebaseAuth) {
+      console.error('Firebase auth is still not initialized');
       throw new Error('Firebase auth is not initialized');
     }
     
     try {
+      console.log('Calling createUserWithEmailAndPassword');
       const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       const user = userCredential.user;
       

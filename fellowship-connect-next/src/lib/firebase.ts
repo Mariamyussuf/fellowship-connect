@@ -70,10 +70,29 @@ export let analytics: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export let app: any;
 
+let initializing = false;
+let initialized = false;
+
 // Conditional initialization function to avoid SSR issues
 export const initFirebase = async () => {
-  if (typeof window !== 'undefined') {
-    try {
+  // Prevent multiple simultaneous initializations
+  if (initializing) {
+    console.log('Firebase initialization already in progress, waiting...');
+    while (initializing && !initialized) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return;
+  }
+  
+  if (initialized) {
+    console.log('Firebase already initialized');
+    return;
+  }
+
+  initializing = true;
+  
+  try {
+    if (typeof window !== 'undefined') {
       // Dynamically import Firebase modules only on client side
       const { initializeApp, getApps } = await import('firebase/app');
       const { getAuth } = await import('firebase/auth');
@@ -82,18 +101,22 @@ export const initFirebase = async () => {
       
       // Prevent multiple initializations
       if (getApps().length === 0) {
+        console.log('Initializing new Firebase app');
         app = initializeApp(firebaseConfig);
       } else {
+        console.log('Using existing Firebase app');
         app = getApps()[0];
       }
       
       // Initialize services only if app is initialized
       if (app) {
+        console.log('Initializing Firebase services');
         auth = getAuth(app);
         db = getFirestore(app);
         storage = getStorage(app);
         
         console.log('Firebase app initialized:', app.name);
+        initialized = true;
         
         // Initialize Analytics only on client-side and only if needed
         try {
@@ -107,11 +130,13 @@ export const initFirebase = async () => {
           console.warn('Firebase Analytics failed to initialize:', error);
         }
       }
-    } catch (error) {
-      console.error('Firebase initialization error:', error);
+    } else {
+      console.log('Firebase initialization skipped on server side');
     }
-  } else {
-    console.log('Firebase initialization skipped on server side');
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+  } finally {
+    initializing = false;
   }
 };
 
