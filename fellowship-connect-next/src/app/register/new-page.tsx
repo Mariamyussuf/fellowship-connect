@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -415,7 +414,7 @@ export default function NewRegisterPage() {
                 
                 <div className="mt-8 text-center">
                   <p className="text-blue-600">
-                    Already have an account?{' '}
+                    Already have an account? 
                     <Link href="/login" className="font-bold text-orange-500 hover:text-orange-600">
                       Sign in
                     </Link>
