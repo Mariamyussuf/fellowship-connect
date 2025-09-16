@@ -14,7 +14,10 @@ import type { FellowshipUser } from '../types';
 const ensureFirebaseInitialized = async () => {
   if (!auth) {
     console.log('Firebase not initialized, initializing now...');
-    await initFirebase();
+    const initialized = await initFirebase();
+    if (!initialized) {
+      throw new Error('Failed to initialize Firebase');
+    }
   }
   
   if (!auth) {

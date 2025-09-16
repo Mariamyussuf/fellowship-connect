@@ -78,15 +78,16 @@ export const initFirebase = async () => {
   // Prevent multiple simultaneous initializations
   if (initializing) {
     console.log('Firebase initialization already in progress, waiting...');
+    // Wait for initialization to complete
     while (initializing && !initialized) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    return;
+    return initialized;
   }
   
   if (initialized) {
     console.log('Firebase already initialized');
-    return;
+    return true;
   }
 
   initializing = true;
@@ -117,6 +118,7 @@ export const initFirebase = async () => {
         
         console.log('Firebase app initialized:', app.name);
         initialized = true;
+        initializing = false;
         
         // Initialize Analytics only on client-side and only if needed
         try {
@@ -129,18 +131,29 @@ export const initFirebase = async () => {
         } catch (error) {
           console.warn('Firebase Analytics failed to initialize:', error);
         }
+        
+        return true;
+      } else {
+        console.error('Failed to initialize Firebase app');
+        initializing = false;
+        return false;
       }
     } else {
       console.log('Firebase initialization skipped on server side');
+      initializing = false;
+      return false;
     }
   } catch (error) {
     console.error('Firebase initialization error:', error);
-  } finally {
     initializing = false;
+    return false;
   }
 };
 
 // Initialize Firebase immediately if we're on the client
 if (typeof window !== 'undefined') {
-  initFirebase();
+  // Add a small delay to ensure all environment variables are loaded
+  setTimeout(() => {
+    initFirebase();
+  }, 100);
 }

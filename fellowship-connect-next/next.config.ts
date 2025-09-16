@@ -8,13 +8,21 @@ const nextConfig: NextConfig = {
     nextScriptWorkers: true,
     turbo: {
       resolveAlias: {
-        // Handle Firebase module resolution in Turbopack
+        
       }
     },
   },
-  // Allow images from Firebase Storage
+  
+  allowedDevOrigins: ['http://10.86.245.61'],
+  
   images: {
-    domains: ['firebasestorage.googleapis.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+      },
+    ],
   },
   // Environment variables
   env: {
