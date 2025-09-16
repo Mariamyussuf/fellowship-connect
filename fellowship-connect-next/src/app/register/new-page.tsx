@@ -216,7 +216,7 @@ export default function NewRegisterPage() {
               
               <p className="text-2xl leading-relaxed max-w-2xl font-medium text-blue-600">
                 Become part of a vibrant community of university students united in faith, 
-                friendship, and purpose. Discover your place in God's story at Bells University.
+                friendship, and purpose. Discover your place in God&apos;s story at Bells University.
               </p>
             </div>
 
