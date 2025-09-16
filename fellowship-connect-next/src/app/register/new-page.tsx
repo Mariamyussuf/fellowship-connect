@@ -98,15 +98,15 @@ export default function NewRegisterPage() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup error:', err);
-      if (err.code === 'auth/email-already-in-use') {
+      if (typeof err === 'object' && err !== null && 'code' in err && (err as {code?: string}).code === 'auth/email-already-in-use') {
         setError('An account with this email already exists. Please try logging in instead.');
-      } else if (err.code === 'auth/invalid-email') {
+      } else if (typeof err === 'object' && err !== null && 'code' in err && (err as {code?: string}).code === 'auth/invalid-email') {
         setError('Invalid email address. Please check and try again.');
-      } else if (err.code === 'auth/operation-not-allowed') {
+      } else if (typeof err === 'object' && err !== null && 'code' in err && (err as {code?: string}).code === 'auth/operation-not-allowed') {
         setError('Account registration is currently disabled. Please contact support.');
-      } else if (err.code === 'auth/weak-password') {
+      } else if (typeof err === 'object' && err !== null && 'code' in err && (err as {code?: string}).code === 'auth/weak-password') {
         setError('Password is too weak. Please use a stronger password.');
       } else {
         setError('Failed to create an account. Please try again.');

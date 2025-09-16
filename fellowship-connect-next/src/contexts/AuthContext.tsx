@@ -3,7 +3,7 @@
 import { createContext, useState, useEffect, useContext, type ReactNode } from 'react';
 import { type User, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { initFirebase, auth as firebaseAuth, db as firebaseDb } from '../lib/firebase';
+import { initFirebase } from '../lib/firebase';
 
 interface FellowshipUser {
   id?: string;

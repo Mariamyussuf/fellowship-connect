@@ -57,7 +57,3 @@ export const getMissingFirebaseConfigKeys = (): string[] => {
   }
 };
 
-export default {
-  isFirebaseConfigComplete,
-  getMissingFirebaseConfigKeys
-};
