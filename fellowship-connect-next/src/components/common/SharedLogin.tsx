@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,8 +26,20 @@ const SharedLogin = ({
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+  
+  // Load saved email from localStorage if "Remember Me" was previously selected
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
+    
+    if (savedRememberMe && savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +54,15 @@ const SharedLogin = ({
       setError('');
       setLoading(true);
       await login(email, password);
+      
+      // Save email to localStorage if "Remember Me" is checked
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberedEmail');
+        localStorage.removeItem('rememberMe');
+      }
       
       // Call the success callback if provided, otherwise redirect to dashboard
       if (onLoginSuccess) {
@@ -62,6 +83,10 @@ const SharedLogin = ({
           setError('No user found with this email address.');
         } else if (error.code === 'auth/wrong-password') {
           setError('Incorrect password. Please try again.');
+        } else if (error.code === 'auth/too-many-requests') {
+          setError('Too many failed login attempts. Please try again later.');
+        } else if (error.code === 'auth/network-request-failed') {
+          setError('Network error. Please check your connection and try again.');
         } else {
           setError(error.message || 'Failed to sign in. Please check your credentials and try again.');
         }
@@ -146,6 +171,8 @@ const SharedLogin = ({
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">

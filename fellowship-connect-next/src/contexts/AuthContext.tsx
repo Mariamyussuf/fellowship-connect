@@ -28,6 +28,7 @@ interface FellowshipUser {
   age?: number;
   birthday?: string;
   department?: string;
+  college?: string;
 }
 
 interface AuthContextType {
@@ -37,7 +38,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, fullName?: string, department?: string, college?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -202,7 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (email: string, password: string) => {
+  const signup = async (email: string, password: string, fullName?: string, department?: string, college?: string) => {
     console.log('Attempting to signup with email:', email);
     
     // Ensure Firebase is initialized before proceeding
@@ -246,6 +247,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newUserProfile: FellowshipUser = {
         uid: user.uid,
         email: user.email || undefined,
+        fullName: fullName || undefined,
+        department: department || undefined,
+        college: college || undefined,
         role: 'member',
         active: true,
       };
