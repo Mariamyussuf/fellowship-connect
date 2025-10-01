@@ -1,38 +1,56 @@
-export async function POST(request: Request) {
+import { NextRequest, NextResponse } from 'next/server';
+import { authenticateUser } from '@/lib/authMiddleware';
+import { sendNotification } from '../notifications/controller';
+
+export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const authResult = await authenticateUser(request);
+    
+    if (!authResult.success) {
+      return NextResponse.json({
+        success: false,
+        error: 'Authentication required'
+      }, { status: 401 });
+    }
+    
+    const { user } = authResult;
+    
+    if (!user) {
+      return NextResponse.json({
+        success: false,
+        error: 'User not found'
+      }, { status: 404 });
+    }
+    
     const body = await request.json();
     
-    // In a real application, you would send the notification to the subscribed users
-    // This is just a simulation for testing purposes
+    // Transform the mock notification format to our new format
+    const notificationData = {
+      title: body.title,
+      body: body.body,
+      recipients: [user.uid], // Send to current user for demo
+      type: 'push'
+    };
     
-    console.log('Notification request received:', body);
+    const result = await sendNotification(notificationData, user);
     
-    // Simulate sending notification
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Notification sent successfully',
-      data: {
-        title: body.title,
-        body: body.body,
-        timestamp: new Date().toISOString()
-      }
-    }), {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-  } catch (error) {
-    // Type guard to ensure error is an Error instance
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    
-    return new Response(JSON.stringify({
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        message: result.message
+      }, { status: 200 });
+    } else {
+      return NextResponse.json({
+        success: false,
+        error: result.error
+      }, { status: 400 });
+    }
+  } catch (error: any) {
+    console.error('Send notification API error:', error);
+    return NextResponse.json({
       success: false,
-      error: errorMessage
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+      error: error.message || 'Internal server error'
+    }, { status: 500 });
   }
 }

@@ -2,8 +2,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Define which routes are protected
-const protectedRoutes = ['/dashboard', '/profile', '/admin'];
+const protectedRoutes = ['/dashboard', '/profile', '/admin', '/api'];
 const authRoutes = ['/login', '/register'];
+
+// Public API routes that don't require authentication
+const publicApiRoutes = [
+  '/api/auth/signup',
+  '/api/auth/login',
+  '/api/auth/reset-password',
+  '/api/auth/verify-email'
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,11 +19,16 @@ export async function middleware(request: NextRequest) {
   // Check if the route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
-
+  const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route));
+  
+  // Skip middleware for public API routes
+  if (isPublicApiRoute) {
+    return NextResponse.next();
+  }
+  
   // For protected routes, we need to check if user is authenticated
   if (isProtectedRoute) {
-    // In middleware, we can't directly access Firebase auth state
-    // We'll check for the presence of auth cookies/session tokens
+    // Get the session cookie from request headers
     const sessionCookie = request.cookies.get('session')?.value;
     
     if (!sessionCookie) {
@@ -25,8 +38,26 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     
-    // Note: Full validation of session cookie would require server-side verification
-    // This is a simplified approach - in production, you'd verify the cookie with Firebase Admin SDK
+    try {
+      // Dynamically import firebase admin only when needed to avoid edge runtime issues
+      const { auth } = await import('./lib/firebaseAdmin');
+      
+      // Verify the session cookie
+      const decodedClaims = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
+      
+      // Add user info to headers for downstream use
+      const response = NextResponse.next();
+      response.headers.set('x-user-id', decodedClaims.uid);
+      response.headers.set('x-user-role', decodedClaims.role || 'member');
+      
+      return response;
+    } catch (error) {
+      console.error('Authentication error:', error);
+      // If verification fails, redirect to login
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
   }
 
   // If logged in and trying to access auth routes, redirect to dashboard
@@ -34,10 +65,22 @@ export async function middleware(request: NextRequest) {
     const sessionCookie = request.cookies.get('session')?.value;
     
     if (sessionCookie) {
-      // Redirect authenticated users away from auth pages
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+      try {
+        // Dynamically import firebase admin only when needed to avoid edge runtime issues
+        const { auth } = await import('./lib/firebaseAdmin');
+        
+        // Verify the session cookie
+        await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
+        
+        // Redirect authenticated users away from auth pages
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      } catch (error) {
+        console.error('Authentication check error:', error);
+        // If verification fails, allow access to auth routes
+        // The invalid cookie will be handled by the auth routes
+      }
     }
   }
 

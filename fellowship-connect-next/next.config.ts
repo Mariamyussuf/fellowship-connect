@@ -6,12 +6,13 @@ const nextConfig: NextConfig = {
   // Enable PWA support
   experimental: {
     nextScriptWorkers: true,
-    turbo: {
-      resolveAlias: {
-        
-      }
-    },
   },
+  
+  // Move serverComponentsExternalPackages to the correct location
+  serverExternalPackages: [
+    "firebase-admin",
+    "firebase",
+  ],
   
   allowedDevOrigins: ['http://10.86.245.61'],
   
@@ -32,6 +33,20 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  },
+  // Handle webpack configuration for node built-ins
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        "fs": false,
+        "net": false,
+        "tls": false,
+        "child_process": false,
+        "process": false,
+      };
+    }
+    return config;
   },
 };
 
