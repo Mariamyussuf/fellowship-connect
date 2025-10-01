@@ -6,8 +6,10 @@ import { UpdatePrayerStatusSchema } from '@/lib/validation';
 
 const prayerService = new PrayerService();
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     
@@ -67,8 +69,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     

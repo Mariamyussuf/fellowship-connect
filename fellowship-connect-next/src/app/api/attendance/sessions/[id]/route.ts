@@ -4,8 +4,10 @@ import { AttendanceService } from '@/services/server/attendance.service';
 
 const attendanceService = new AttendanceService();
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     
@@ -39,8 +41,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     

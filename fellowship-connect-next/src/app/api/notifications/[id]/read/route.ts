@@ -4,8 +4,10 @@ import { NotificationService } from '@/services/server/notification.service';
 
 const notificationService = new NotificationService();
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     

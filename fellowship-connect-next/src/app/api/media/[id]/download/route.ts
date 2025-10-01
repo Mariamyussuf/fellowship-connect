@@ -4,8 +4,10 @@ import { MediaService } from '@/services/server/media.service';
 
 const mediaService = new MediaService();
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     

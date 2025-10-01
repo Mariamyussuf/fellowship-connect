@@ -5,8 +5,10 @@ import { PrayerService } from '@/services/server/prayer.service';
 
 const prayerService = new PrayerService();
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    // Get the params from the context
+    const params = await context.params;
     // Authenticate user
     const authReq = request as any;
     
