@@ -119,7 +119,7 @@ export async function listUsers(page: number = 1, limit: number = 10, currentUse
       .offset(offset)
       .get();
     
-    const users = usersSnapshot.docs.map(doc => ({
+    const users = usersSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
       id: doc.id,
       ...doc.data()
     }));
