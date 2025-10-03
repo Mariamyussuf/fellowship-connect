@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { User } from '../../types/database';
+import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 /**
  * User Service extending BaseService
@@ -30,7 +31,7 @@ export class UserService extends BaseService<User> {
         };
       }
       
-      const userData: any = { id: userDoc.id, ...userDoc.data() };
+      const userData: User = { ...(userDoc.data() as User), uid: userDoc.id };
       
       // Log audit action
       await this.logAudit('GET_USER', userId, {});
@@ -122,8 +123,8 @@ export class UserService extends BaseService<User> {
    */
   async listUsers(
     filters: { role?: string; status?: string } = {},
-    pagination: { limit?: number; lastDoc?: any } = {}
-  ): Promise<{ success: boolean; users?: User[]; lastDoc?: any; message?: string }> {
+    pagination: { limit?: number; lastDoc?: QueryDocumentSnapshot<DocumentData> } = {}
+  ): Promise<{ success: boolean; users?: User[]; lastDoc?: QueryDocumentSnapshot<DocumentData>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -150,8 +151,8 @@ export class UserService extends BaseService<User> {
       const querySnapshot = await query.get();
       const users: User[] = [];
       
-      querySnapshot.forEach((doc: any) => {
-        users.push({ id: doc.id, ...(doc.data() as any) } as User);
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        users.push({ ...(doc.data() as User), uid: doc.id });
       });
       
       const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
@@ -224,15 +225,15 @@ export class UserService extends BaseService<User> {
       const snapshot = await usersRef.get();
       const users: User[] = [];
       
-      snapshot.forEach((doc: any) => {
-        const userData: any = { id: doc.id, ...(doc.data() as any) };
+      snapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const userData: User = { ...(doc.data() as User), uid: doc.id };
         
         // Simple search implementation
         if (
           (userData.displayName && userData.displayName.toLowerCase().includes(query.toLowerCase())) ||
           (userData.email && userData.email.toLowerCase().includes(query.toLowerCase()))
         ) {
-          users.push(userData as User);
+          users.push(userData);
         }
       });
       

@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/auth';
 import { NotificationService } from '@/services/server/notification.service';
 
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 const notificationService = new NotificationService();
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -41,11 +50,12 @@ export async function GET(request: NextRequest) {
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get notification history API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

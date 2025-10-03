@@ -2,12 +2,104 @@ import { Timestamp } from 'firebase/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { AuditService } from './audit.service';
+import type FirebaseFirestore from 'firebase-admin/firestore';
+import { AuditLog } from '../../types/database';
+
+interface DashboardStats {
+  users: {
+    total: number;
+    active: number;
+    growth: number;
+  };
+  attendance: {
+    last7Days: number;
+    averageDaily: number;
+  };
+  engagement: {
+    prayerRequests: number;
+    welfareSupport: number;
+  };
+  system: {
+    health: string;
+    lastUpdated: string;
+  };
+}
+
+interface UserAnalytics {
+  newUserCount: number;
+  activeUserCount: number;
+  usersByRole: Record<string, number>;
+  usersByDate: Record<string, number>;
+  retentionRate: number;
+}
+
+interface AttendanceAnalytics {
+  totalAttendance: number;
+  uniqueAttendees: number;
+  averageDaily: number;
+  attendanceByDate: Record<string, number>;
+  attendanceByMethod: Record<string, number>;
+  peakAttendanceDate: string;
+}
+
+interface PrayerAnalytics {
+  totalPrayers: number;
+  prayersByStatus: Record<string, number>;
+  prayersByDate: Record<string, number>;
+  anonymousPrayers: number;
+  publicPrayers: number;
+  mostCommonCategory: string;
+}
+
+interface SystemHealth {
+  status: string;
+  uptime: number;
+  memory: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  database: {
+    status: string;
+    latency: number;
+  };
+  api: {
+    status: string;
+    responseTime: number;
+  };
+  lastChecked: string;
+}
+
+interface UserData {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  role: string;
+  createdAt?: string;
+  lastLoginAt?: string;
+  [key: string]: unknown;
+}
+
+interface AttendanceRecord {
+  userId: string;
+  timestamp: string;
+  method?: string;
+  [key: string]: unknown;
+}
+
+interface PrayerRequest {
+  userId: string;
+  createdAt: string;
+  status?: string;
+  isAnonymous?: boolean;
+  [key: string]: unknown;
+}
 
 /**
  * Admin Service extending BaseService
  * Handles admin analytics, reporting, and system management
  */
-export class AdminService extends BaseService<any> {
+export class AdminService extends BaseService<Record<string, unknown>> {
   private auditService: AuditService;
 
   constructor() {
@@ -19,7 +111,7 @@ export class AdminService extends BaseService<any> {
    * Get dashboard statistics
    * @returns Dashboard statistics
    */
-  async getDashboardStats(userId: string, ipAddress: string = 'unknown'): Promise<{ success: boolean; stats?: any; message?: string }> {
+  async getDashboardStats(userId: string, ipAddress: string = 'unknown'): Promise<{ success: boolean; stats?: DashboardStats; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -53,7 +145,7 @@ export class AdminService extends BaseService<any> {
       const welfareSupportSnapshot = await db.collection('welfareSupport').get();
       const welfareSupportCount = welfareSupportSnapshot.size;
       
-      const stats = {
+      const stats: DashboardStats = {
         users: {
           total: userCount,
           active: activeUserCount,
@@ -98,7 +190,7 @@ export class AdminService extends BaseService<any> {
     dateRange: { start: string; end: string },
     userId: string,
     ipAddress: string = 'unknown'
-  ): Promise<{ success: boolean; analytics?: any; message?: string }> {
+  ): Promise<{ success: boolean; analytics?: UserAnalytics; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -108,9 +200,13 @@ export class AdminService extends BaseService<any> {
         .where('createdAt', '<=', dateRange.end)
         .get();
       
-      const newUsers: any[] = [];
-      newUserQuery.forEach((doc: any) => {
-        newUsers.push({ id: doc.id, ...(doc.data() as any) });
+      const newUsers: UserData[] = [];
+      newUserQuery.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as UserData;
+        newUsers.push({
+          ...data,
+          id: doc.id
+        });
       });
       
       // Get user activity
@@ -119,9 +215,13 @@ export class AdminService extends BaseService<any> {
         .where('lastLoginAt', '<=', dateRange.end)
         .get();
       
-      const activeUsers: any[] = [];
-      activeUserQuery.forEach((doc: any) => {
-        activeUsers.push({ id: doc.id, ...(doc.data() as any) });
+      const activeUsers: UserData[] = [];
+      activeUserQuery.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as UserData;
+        activeUsers.push({
+          ...data,
+          id: doc.id
+        });
       });
       
       // Group by role
@@ -134,11 +234,13 @@ export class AdminService extends BaseService<any> {
       // Group by date
       const usersByDate: Record<string, number> = {};
       newUsers.forEach(user => {
-        const date = user.createdAt.split('T')[0];
-        usersByDate[date] = (usersByDate[date] || 0) + 1;
+        const date = user.createdAt?.split('T')[0] || '';
+        if (date) {
+          usersByDate[date] = (usersByDate[date] || 0) + 1;
+        }
       });
       
-      const analytics = {
+      const analytics: UserAnalytics = {
         newUserCount: newUsers.length,
         activeUserCount: activeUsers.length,
         usersByRole,
@@ -171,7 +273,7 @@ export class AdminService extends BaseService<any> {
     dateRange: { start: string; end: string },
     userId: string,
     ipAddress: string = 'unknown'
-  ): Promise<{ success: boolean; analytics?: any; message?: string }> {
+  ): Promise<{ success: boolean; analytics?: AttendanceAnalytics; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -181,9 +283,13 @@ export class AdminService extends BaseService<any> {
         .where('timestamp', '<=', dateRange.end)
         .get();
       
-      const attendanceRecords: any[] = [];
-      attendanceQuery.forEach((doc: any) => {
-        attendanceRecords.push({ id: doc.id, ...(doc.data() as any) });
+      const attendanceRecords: AttendanceRecord[] = [];
+      attendanceQuery.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as AttendanceRecord;
+        attendanceRecords.push({
+          ...data,
+          id: doc.id
+        });
       });
       
       // Group by date
@@ -203,15 +309,15 @@ export class AdminService extends BaseService<any> {
       // Get unique attendees
       const uniqueAttendees = new Set(attendanceRecords.map(record => record.userId)).size;
       
-      const analytics = {
+      const analytics: AttendanceAnalytics = {
         totalAttendance: attendanceRecords.length,
         uniqueAttendees,
-        averageDaily: Math.round(attendanceRecords.length / Object.keys(attendanceByDate).length),
+        averageDaily: Math.round(attendanceRecords.length / Math.max(1, Object.keys(attendanceByDate).length)),
         attendanceByDate,
         attendanceByMethod,
         peakAttendanceDate: Object.keys(attendanceByDate).reduce((a, b) => 
           attendanceByDate[a] > attendanceByDate[b] ? a : b, 
-          Object.keys(attendanceByDate)[0]
+          Object.keys(attendanceByDate)[0] || ''
         )
       };
       
@@ -240,7 +346,7 @@ export class AdminService extends BaseService<any> {
     dateRange: { start: string; end: string },
     userId: string,
     ipAddress: string = 'unknown'
-  ): Promise<{ success: boolean; analytics?: any; message?: string }> {
+  ): Promise<{ success: boolean; analytics?: PrayerAnalytics; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -250,9 +356,13 @@ export class AdminService extends BaseService<any> {
         .where('createdAt', '<=', dateRange.end)
         .get();
       
-      const prayerRequests: any[] = [];
-      prayerQuery.forEach((doc: any) => {
-        prayerRequests.push({ id: doc.id, ...(doc.data() as any) });
+      const prayerRequests: PrayerRequest[] = [];
+      prayerQuery.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as PrayerRequest;
+        prayerRequests.push({
+          ...data,
+          id: doc.id
+        });
       });
       
       // Group by status
@@ -273,7 +383,7 @@ export class AdminService extends BaseService<any> {
       const anonymousPrayers = prayerRequests.filter(request => request.isAnonymous).length;
       const publicPrayers = prayerRequests.filter(request => !request.isAnonymous).length;
       
-      const analytics = {
+      const analytics: PrayerAnalytics = {
         totalPrayers: prayerRequests.length,
         prayersByStatus,
         prayersByDate,
@@ -308,14 +418,14 @@ export class AdminService extends BaseService<any> {
   async exportData(
     collection: string,
     format: 'csv' | 'json',
-    filters: Record<string, any> = {},
+    filters: Record<string, unknown> = {},
     userId: string,
     ipAddress: string = 'unknown'
   ): Promise<{ success: boolean; data?: string; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection(collection);
+      let query: FirebaseFirestore.Query = db.collection(collection);
       
       // Apply filters
       Object.entries(filters).forEach(([key, value]) => {
@@ -325,10 +435,14 @@ export class AdminService extends BaseService<any> {
       });
       
       const querySnapshot = await query.get();
-      const data: any[] = [];
+      const data: Record<string, unknown>[] = [];
       
-      querySnapshot.forEach((doc: any) => {
-        data.push({ id: doc.id, ...(doc.data() as any) });
+      querySnapshot.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const docData = doc.data() as Record<string, unknown>;
+        data.push({
+          ...docData,
+          id: doc.id
+        });
       });
       
       let exportData: string;
@@ -379,11 +493,11 @@ export class AdminService extends BaseService<any> {
    * @returns Audit logs
    */
   async getAuditLogs(
-    filters: { action?: string; userId?: string } = {},
-    pagination: { limit?: number; lastDoc?: any } = {},
+    filters: Record<string, unknown> = {},
+    pagination: { limit?: number; lastDoc?: FirebaseFirestore.QueryDocumentSnapshot | null } = {},
     userId: string,
     ipAddress: string = 'unknown'
-  ): Promise<{ success: boolean; logs?: any[]; lastDoc?: any; message?: string }> {
+  ): Promise<{ success: boolean; logs?: AuditLog[]; lastDoc?: FirebaseFirestore.QueryDocumentSnapshot | null; message?: string }> {
     try {
       const result = await this.auditService.getAuditLogs(filters, pagination.limit, pagination.lastDoc);
       
@@ -408,12 +522,12 @@ export class AdminService extends BaseService<any> {
    * Get system health metrics
    * @returns System health metrics
    */
-  async getSystemHealth(userId: string, ipAddress: string = 'unknown'): Promise<{ success: boolean; health?: any; message?: string }> {
+  async getSystemHealth(userId: string, ipAddress: string = 'unknown'): Promise<{ success: boolean; health?: SystemHealth; message?: string }> {
     try {
       // In a real implementation, you would check actual system metrics
       // For now, we'll return simulated health data
       
-      const health = {
+      const health: SystemHealth = {
         status: 'healthy',
         uptime: process.uptime(),
         memory: {

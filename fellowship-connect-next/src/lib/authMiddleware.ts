@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from './firebaseAdmin';
+import { getFirebaseAdmin } from './firebaseAdmin';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
 // Define user roles
@@ -12,7 +12,7 @@ export interface AuthenticatedUser {
   role: UserRole;
   customClaims: {
     role?: UserRole;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -34,6 +34,15 @@ export async function authenticateUser(request: NextRequest): Promise<{
   error?: string;
 }> {
   try {
+    // Get Firebase services
+    const { auth } = await getFirebaseAdmin();
+    if (!auth) {
+      return { 
+        success: false, 
+        error: 'Authentication service not available' 
+      };
+    }
+    
     // Get the session cookie from request headers
     const sessionCookie = request.cookies.get('session')?.value;
     
@@ -45,10 +54,10 @@ export async function authenticateUser(request: NextRequest): Promise<{
     }
 
     // Verify the session cookie
-    const decodedClaims = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
+    const decodedClaims: DecodedIdToken = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
     
     // Get user role from custom claims
-    const role = decodedClaims.role as UserRole || 'member';
+    const role = (decodedClaims.role as UserRole) || 'member';
     
     return {
       success: true,
@@ -59,11 +68,12 @@ export async function authenticateUser(request: NextRequest): Promise<{
         customClaims: decodedClaims
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Authentication error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
     return { 
       success: false, 
-      error: error.message || 'Authentication failed' 
+      error: errorMessage
     };
   }
 }
@@ -90,7 +100,7 @@ export async function requireRole(
     return { 
       success: false, 
       error: 'User not found' 
-    };
+      };
   }
   
   // Check if user has required role
@@ -109,7 +119,13 @@ export async function requireRole(
 
 // Helper function to create session cookies
 export async function createSessionCookie(idToken: string, expiresIn: number): Promise<string> {
-  const decodedIdToken = await auth.verifyIdToken(idToken);
+  // Get Firebase services
+  const { auth } = await getFirebaseAdmin();
+  if (!auth) {
+    throw new Error('Authentication service not available');
+  }
+  
+  const _decodedIdToken: DecodedIdToken = await auth.verifyIdToken(idToken);
   
   // Create session cookie
   const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
@@ -119,5 +135,11 @@ export async function createSessionCookie(idToken: string, expiresIn: number): P
 
 // Helper function to revoke session cookies
 export async function revokeRefreshTokens(uid: string): Promise<void> {
+  // Get Firebase services
+  const { auth } = await getFirebaseAdmin();
+  if (!auth) {
+    throw new Error('Authentication service not available');
+  }
+  
   await auth.revokeRefreshTokens(uid);
 }

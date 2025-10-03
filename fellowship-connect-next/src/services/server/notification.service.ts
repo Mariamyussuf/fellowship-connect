@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { Notification } from '../../types/database';
+import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 /**
  * Notification Service extending BaseService
@@ -24,7 +25,7 @@ export class NotificationService extends BaseService<Notification> {
     to: string,
     subject: string,
     template: string,
-    data: Record<string, any>
+    data: Record<string, unknown>
   ): Promise<{ success: boolean; messageId?: string; message?: string }> {
     try {
       // In a real implementation, you would integrate with SendGrid, SES, or similar
@@ -61,7 +62,7 @@ export class NotificationService extends BaseService<Notification> {
    */
   async sendPush(
     userId: string,
-    notification: { title: string; body: string; data?: Record<string, any> }
+    notification: { title: string; body: string; data?: Record<string, unknown> }
   ): Promise<{ success: boolean; messageId?: string; message?: string }> {
     try {
       const { auth, db } = getFirebaseAdmin();
@@ -80,7 +81,7 @@ export class NotificationService extends BaseService<Notification> {
       }
       
       const tokens: string[] = [];
-      tokensQuery.forEach((doc: any) => {
+      tokensQuery.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         tokens.push(doc.data().token);
       });
       
@@ -158,8 +159,8 @@ export class NotificationService extends BaseService<Notification> {
    */
   async getNotificationHistory(
     userId: string,
-    pagination: { limit?: number; lastDoc?: any } = {}
-  ): Promise<{ success: boolean; notifications?: Notification[]; lastDoc?: any; message?: string }> {
+    pagination: { limit?: number; lastDoc?: QueryDocumentSnapshot<DocumentData> } = {}
+  ): Promise<{ success: boolean; notifications?: Notification[]; lastDoc?: QueryDocumentSnapshot<DocumentData>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -179,8 +180,8 @@ export class NotificationService extends BaseService<Notification> {
       const querySnapshot = await query.get();
       const notifications: Notification[] = [];
       
-      querySnapshot.forEach((doc: any) => {
-        notifications.push({ id: doc.id, ...(doc.data() as any) } as Notification);
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        notifications.push({ id: doc.id, ...(doc.data() as Notification) } as Notification);
       });
       
       const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
@@ -237,7 +238,7 @@ export class NotificationService extends BaseService<Notification> {
    * @param userId User ID
    * @returns User preferences
    */
-  async getUserPreferences(userId: string): Promise<{ success: boolean; preferences?: any; message?: string }> {
+  async getUserPreferences(userId: string): Promise<{ success: boolean; preferences?: Record<string, unknown>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       

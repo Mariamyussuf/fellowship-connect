@@ -3,6 +3,12 @@ import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { User } from '../../types/database';
 import { nanoid } from 'nanoid';
+import type { auth } from 'firebase-admin';
+
+interface FirebaseError {
+  code: string;
+  message: string;
+}
 
 /**
  * Authentication Service extending BaseService
@@ -58,29 +64,32 @@ export class AuthService extends BaseService<User> {
         userId, 
         message: 'User created successfully' 
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error);
       
       // Handle specific Firebase auth errors
-      if (error.code === 'auth/email-already-exists') {
-        return { 
-          success: false, 
-          message: 'Email already in use' 
-        };
-      }
-      
-      if (error.code === 'auth/invalid-email') {
-        return { 
-          success: false, 
-          message: 'Invalid email address' 
-        };
-      }
-      
-      if (error.code === 'auth/weak-password') {
-        return { 
-          success: false, 
-          message: 'Password is too weak' 
-        };
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as FirebaseError;
+        if (firebaseError.code === 'auth/email-already-exists') {
+          return { 
+            success: false, 
+            message: 'Email already in use' 
+          };
+        }
+        
+        if (firebaseError.code === 'auth/invalid-email') {
+          return { 
+            success: false, 
+            message: 'Invalid email address' 
+          };
+        }
+        
+        if (firebaseError.code === 'auth/weak-password') {
+          return { 
+            success: false, 
+            message: 'Password is too weak' 
+          };
+        }
       }
       
       return { 
@@ -138,22 +147,25 @@ export class AuthService extends BaseService<User> {
         sessionCookie, 
         message: 'Login successful' 
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
       
       // Handle specific Firebase auth errors
-      if (error.code === 'auth/user-not-found') {
-        return { 
-          success: false, 
-          message: 'User not found' 
-        };
-      }
-      
-      if (error.code === 'auth/wrong-password') {
-        return { 
-          success: false, 
-          message: 'Invalid password' 
-        };
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as FirebaseError;
+        if (firebaseError.code === 'auth/user-not-found') {
+          return { 
+            success: false, 
+            message: 'User not found' 
+          };
+        }
+        
+        if (firebaseError.code === 'auth/wrong-password') {
+          return { 
+            success: false, 
+            message: 'Invalid password' 
+          };
+        }
       }
       
       return { 
@@ -243,15 +255,18 @@ export class AuthService extends BaseService<User> {
         success: true, 
         message: 'Password reset email sent' 
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset error:', error);
       
       // Handle specific Firebase auth errors
-      if (error.code === 'auth/user-not-found') {
-        return { 
-          success: false, 
-          message: 'User not found' 
-        };
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as FirebaseError;
+        if (firebaseError.code === 'auth/user-not-found') {
+          return { 
+            success: false, 
+            message: 'User not found' 
+          };
+        }
       }
       
       return { 
@@ -313,15 +328,18 @@ export class AuthService extends BaseService<User> {
         success: true, 
         message: 'Password updated successfully' 
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password update error:', error);
       
       // Handle specific Firebase auth errors
-      if (error.code === 'auth/weak-password') {
-        return { 
-          success: false, 
-          message: 'New password is too weak' 
-        };
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as FirebaseError;
+        if (firebaseError.code === 'auth/weak-password') {
+          return { 
+            success: false, 
+            message: 'New password is too weak' 
+          };
+        }
       }
       
       return { 

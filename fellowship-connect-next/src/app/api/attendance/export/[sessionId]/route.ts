@@ -3,14 +3,24 @@ import { withAuth } from '@/middleware/auth';
 import { requireRole } from '@/middleware/rbac';
 import { AttendanceService } from '@/services/server/attendance.service';
 
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 const attendanceService = new AttendanceService();
+
 
 export async function GET(request: NextRequest, context: { params: Promise<{ sessionId: string }> }) {
   try {
     // Get the params from the context
     const params = await context.params;
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -51,11 +61,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ses
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Export attendance API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

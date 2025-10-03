@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { PrayerRequest, WelfareSupport, EvangelismReport } from '../../types/database';
+import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 /**
  * Prayer Service extending BaseService
@@ -27,7 +28,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      const prayerData: any = {
+      const prayerData: Partial<PrayerRequest> = {
         userId,
         title: data.title,
         description: data.description,
@@ -67,8 +68,8 @@ export class PrayerService extends BaseService<PrayerRequest> {
    */
   async getPrayerRequests(
     filters: { status?: string; userId?: string } = {},
-    pagination: { limit?: number; lastDoc?: any } = {}
-  ): Promise<{ success: boolean; requests?: PrayerRequest[]; lastDoc?: any; message?: string }> {
+    pagination: { limit?: number; lastDoc?: QueryDocumentSnapshot<DocumentData> } = {}
+  ): Promise<{ success: boolean; requests?: PrayerRequest[]; lastDoc?: QueryDocumentSnapshot<DocumentData>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -95,7 +96,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
       const querySnapshot = await query.get();
       const requests: PrayerRequest[] = [];
       
-      querySnapshot.forEach((doc: any) => {
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         const requestData: any = { id: doc.id, ...(doc.data() as any) };
         
         // Hide user info for anonymous requests
@@ -200,13 +201,12 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      const welfareData: any = {
+      const welfareData: Partial<WelfareSupport> = {
         userId,
         category: data.category,
         description: data.description,
         urgency: data.urgency as any,
         status: 'pending',
-        isAnonymous: data.isAnonymous,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -241,8 +241,8 @@ export class PrayerService extends BaseService<PrayerRequest> {
    */
   async getWelfareRequests(
     filters: { status?: string } = {},
-    pagination: { limit?: number; lastDoc?: any } = {}
-  ): Promise<{ success: boolean; requests?: WelfareSupport[]; lastDoc?: any; message?: string }> {
+    pagination: { limit?: number; lastDoc?: QueryDocumentSnapshot<DocumentData> } = {}
+  ): Promise<{ success: boolean; requests?: WelfareSupport[]; lastDoc?: QueryDocumentSnapshot<DocumentData>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -265,7 +265,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
       const querySnapshot = await query.get();
       const requests: WelfareSupport[] = [];
       
-      querySnapshot.forEach((doc: any) => {
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         const requestData: any = { id: doc.id, ...(doc.data() as any) };
         
         // Hide user info for anonymous requests
@@ -311,7 +311,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         status,
         updatedAt: Timestamp.now()
       };
@@ -351,7 +351,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      const reportData: any = {
+      const reportData: Partial<EvangelismReport> = {
         userId,
         location: data.location || '',
         contacts: '',
@@ -363,9 +363,9 @@ export class PrayerService extends BaseService<PrayerRequest> {
       };
       
       // Add optional fields
-      if (data.title) reportData.title = data.title;
-      if (data.description) reportData.description = data.description;
-      if (data.followUpRequired !== undefined) reportData.followUpRequired = data.followUpRequired;
+      if (data.title) (reportData as any).title = data.title;
+      if (data.description) (reportData as any).description = data.description;
+      if (data.followUpRequired !== undefined) (reportData as any).followUpRequired = data.followUpRequired;
       
       const docRef = await db.collection('evangelismReports').add({
         ...reportData,
@@ -397,8 +397,8 @@ export class PrayerService extends BaseService<PrayerRequest> {
    */
   async getEvangelismReports(
     filters: { status?: string } = {},
-    pagination: { limit?: number; lastDoc?: any } = {}
-  ): Promise<{ success: boolean; reports?: EvangelismReport[]; lastDoc?: any; message?: string }> {
+    pagination: { limit?: number; lastDoc?: QueryDocumentSnapshot<DocumentData> } = {}
+  ): Promise<{ success: boolean; reports?: EvangelismReport[]; lastDoc?: QueryDocumentSnapshot<DocumentData>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -421,8 +421,8 @@ export class PrayerService extends BaseService<PrayerRequest> {
       const querySnapshot = await query.get();
       const reports: EvangelismReport[] = [];
       
-      querySnapshot.forEach((doc: any) => {
-        reports.push({ id: doc.id, ...(doc.data() as any) } as EvangelismReport);
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        reports.push({ id: doc.id, ...(doc.data() as EvangelismReport) } as EvangelismReport);
       });
       
       const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];

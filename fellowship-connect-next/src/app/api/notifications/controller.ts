@@ -1,9 +1,39 @@
-import { db } from '@/lib/firebaseAdmin';
 import { sendNotificationSchema, broadcastNotificationSchema } from '@/lib/schemas';
 import { AuthenticatedUser } from '@/lib/authMiddleware';
+import type FirebaseFirestore from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/firebaseAdmin';
+
+interface Notification {
+  id?: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: string;
+  recipients?: string[];
+  senderId: string;
+  senderEmail?: string;
+  senderName?: string;
+  sentAt: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+interface SendNotificationResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface GetNotificationHistoryResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  notifications?: Notification[];
+  total?: number;
+}
 
 // Send notification
-export async function sendNotification(data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function sendNotification(data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<SendNotificationResult> {
   try {
     // Validate input
     const validatedData = sendNotificationSchema.parse(data);
@@ -18,8 +48,14 @@ export async function sendNotification(data: any, currentUser: AuthenticatedUser
       return { success: false, error: 'Insufficient permissions' };
     }
     
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
+    }
+    
     // Create notification record in Firestore
-    const notificationData = {
+    const notificationData: Omit<Notification, 'id'> = {
       ...validatedData,
       senderId: currentUser.uid,
       senderEmail: currentUser.email || '',
@@ -40,14 +76,15 @@ export async function sendNotification(data: any, currentUser: AuthenticatedUser
       success: true,
       message: 'Notification sent successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Send notification error:', error);
-    return { success: false, error: error.message || 'Failed to send notification' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send notification';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Broadcast notification
-export async function broadcastNotification(data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function broadcastNotification(data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<SendNotificationResult> {
   try {
     // Validate input
     const validatedData = broadcastNotificationSchema.parse(data);
@@ -62,8 +99,14 @@ export async function broadcastNotification(data: any, currentUser: Authenticate
       return { success: false, error: 'Insufficient permissions' };
     }
     
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
+    }
+    
     // Create notification record in Firestore
-    const notificationData = {
+    const notificationData: Omit<Notification, 'id'> = {
       ...validatedData,
       senderId: currentUser.uid,
       senderEmail: currentUser.email || '',
@@ -84,22 +127,29 @@ export async function broadcastNotification(data: any, currentUser: Authenticate
       success: true,
       message: 'Broadcast notification sent successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Broadcast notification error:', error);
-    return { success: false, error: error.message || 'Failed to broadcast notification' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to broadcast notification';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Get notification history
-export async function getNotificationHistory(filters: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; notifications?: any[]; total?: number }> {
+export async function getNotificationHistory(filters: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<GetNotificationHistoryResult> {
   try {
     // Only authenticated users can get notification history
     if (!currentUser) {
       return { success: false, error: 'Authentication required' };
     }
     
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
+    }
+    
     // Check permissions - only admins can get full notification history
-    let query: any = db.collection('notifications');
+    let query: FirebaseFirestore.Query = db.collection('notifications');
     
     if (!['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
       // Regular users can only see notifications sent to them
@@ -108,15 +158,15 @@ export async function getNotificationHistory(filters: any, currentUser: Authenti
     
     // Apply filters
     if (filters.senderId) {
-      query = query.where('senderId', '==', filters.senderId);
+      query = query.where('senderId', '==', filters.senderId as string);
     }
     
     // Order by sent date
     query = query.orderBy('sentAt', 'desc');
     
     // Apply pagination
-    const page = filters.page || 1;
-    const limit = filters.limit || 10;
+    const page = (filters.page as number) || 1;
+    const limit = (filters.limit as number) || 10;
     const offset = (page - 1) * limit;
     
     query = query.limit(limit).offset(offset);
@@ -124,10 +174,13 @@ export async function getNotificationHistory(filters: any, currentUser: Authenti
     // Get notifications
     const notificationsSnapshot = await query.get();
     
-    const notifications = notificationsSnapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const notifications: Notification[] = notificationsSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+      const data = doc.data() as Notification;
+      return {
+        ...data,
+        id: doc.id
+      };
+    });
     
     // Get total count
     const totalSnapshot = await db.collection('notifications').get();
@@ -138,8 +191,9 @@ export async function getNotificationHistory(filters: any, currentUser: Authenti
       notifications,
       total
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get notification history error:', error);
-    return { success: false, error: error.message || 'Failed to get notification history' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get notification history';
+    return { success: false, error: errorMessage };
   }
 }

@@ -1,9 +1,9 @@
-import { CollectionReference, DocumentData, Query, QuerySnapshot, Timestamp, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, deleteDoc, where, orderBy, limit, startAfter, writeBatch } from 'firebase/firestore';
+import { CollectionReference, DocumentData, Query, QuerySnapshot, Timestamp, DocumentReference, QueryDocumentSnapshot, WriteBatch } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { AuditLog } from '../../types/database';
 
 // Type for Firebase Admin Firestore
-type AdminFirestore = ReturnType<typeof getFirebaseAdmin>['db'];
+type AdminFirestore = NonNullable<ReturnType<typeof getFirebaseAdmin>['db']>;
 
 /**
  * Abstract BaseService class that all services extend
@@ -16,9 +16,9 @@ export abstract class BaseService<T extends DocumentData> {
 
   constructor(collectionName: string) {
     const { db } = getFirebaseAdmin();
-    this.db = db;
+    this.db = db!;
     this.collectionName = collectionName;
-    this.collectionRef = collection(db as any, collectionName) as CollectionReference<T>;
+    this.collectionRef = this.db.collection(collectionName) as CollectionReference<T>;
   }
 
   /**
@@ -36,21 +36,20 @@ export abstract class BaseService<T extends DocumentData> {
         updatedAt: timestamp
       };
 
-      let docRef;
+      let docRef: DocumentReference<T>;
       if (id) {
-        docRef = doc(this.collectionRef, id);
-        await setDoc(docRef, documentData);
+        docRef = this.collectionRef.doc(id);
+        await docRef.set(documentData);
         return docRef.id;
       } else {
-        docRef = await setDoc(doc(this.collectionRef), documentData);
-        // For Firebase Admin, setDoc returns void, so we return the id from the collection ref
-        return id || 'unknown';
+        docRef = await this.collectionRef.add(documentData);
+        return docRef.id;
       }
 
       // Log audit action
-      await this.logAudit('CREATE', id || 'unknown', documentData);
+      await this.logAudit('CREATE', id || docRef.id, documentData);
 
-      return id || 'generated-id';
+      return docRef.id;
     } catch (error) {
       console.error(`Error creating document in ${this.collectionName}:`, error);
       throw new Error(`Failed to create document: ${error instanceof Error ? error.message : String(error)}`);
@@ -64,11 +63,11 @@ export abstract class BaseService<T extends DocumentData> {
    */
   async getById(id: string): Promise<T | null> {
     try {
-      const docRef = doc(this.collectionRef, id);
-      const docSnap = await getDoc(docRef);
+      const docRef = this.collectionRef.doc(id);
+      const docSnap = await docRef.get();
       
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as T;
+      if (docSnap.exists) {
+        return { id: docSnap.id, ...docSnap.data() } as unknown as T;
       }
       
       return null;
@@ -86,13 +85,13 @@ export abstract class BaseService<T extends DocumentData> {
    */
   async update(id: string, data: Partial<T>): Promise<boolean> {
     try {
-      const docRef = doc(this.collectionRef, id);
-      const updateData = {
+      const docRef = this.collectionRef.doc(id);
+      const updateData: any = {
         ...data,
         updatedAt: Timestamp.now()
       };
       
-      await updateDoc(docRef, updateData);
+      await docRef.update(updateData);
       
       // Log audit action
       await this.logAudit('UPDATE', id, data);
@@ -111,14 +110,14 @@ export abstract class BaseService<T extends DocumentData> {
    */
   async delete(id: string): Promise<boolean> {
     try {
-      const docRef = doc(this.collectionRef, id);
+      const docRef = this.collectionRef.doc(id);
       
       // Soft delete by setting deleted flag and deletedAt timestamp
-      await updateDoc(docRef, {
+      await docRef.update({
         deleted: true,
         deletedAt: Timestamp.now(),
         updatedAt: Timestamp.now()
-      });
+      } as any);
       
       // Log audit action
       await this.logAudit('DELETE', id, {});
@@ -137,8 +136,8 @@ export abstract class BaseService<T extends DocumentData> {
    */
   async hardDelete(id: string): Promise<boolean> {
     try {
-      const docRef = doc(this.collectionRef, id);
-      await deleteDoc(docRef);
+      const docRef = this.collectionRef.doc(id);
+      await docRef.delete();
       
       // Log audit action
       await this.logAudit('HARD_DELETE', id, {});
@@ -163,25 +162,25 @@ export abstract class BaseService<T extends DocumentData> {
     lastDoc: any = null
   ): Promise<{ data: T[]; lastDoc: any }> {
     try {
-      let q: Query<T> = query(this.collectionRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      let query = this.collectionRef.orderBy('createdAt', 'desc').limit(limitCount);
       
       // Apply filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          q = query(q, where(key, '==', value));
+          query = query.where(key, '==', value);
         }
       });
       
       // Apply pagination
       if (lastDoc) {
-        q = query(q, startAfter(lastDoc));
+        query = query.startAfter(lastDoc);
       }
       
-      const querySnapshot: QuerySnapshot<T> = await getDocs(q);
+      const querySnapshot = await query.get();
       const data: T[] = [];
       
       querySnapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() });
+        data.push({ id: doc.id, ...doc.data() } as unknown as T);
       });
       
       const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
@@ -201,12 +200,12 @@ export abstract class BaseService<T extends DocumentData> {
    */
   async findByField(field: string, value: any): Promise<T[]> {
     try {
-      const q = query(this.collectionRef, where(field, '==', value));
-      const querySnapshot = await getDocs(q);
+      const query = this.collectionRef.where(field, '==', value);
+      const querySnapshot = await query.get();
       const data: T[] = [];
       
       querySnapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() });
+        data.push({ id: doc.id, ...doc.data() } as unknown as T);
       });
       
       return data;
@@ -228,7 +227,7 @@ export abstract class BaseService<T extends DocumentData> {
     changes: Record<string, any>
   ): Promise<void> {
     try {
-      const auditCollection = collection(this.db as any, 'auditLogs');
+      const auditCollection = this.db.collection('auditLogs');
       const auditLog: AuditLog = {
         action,
         userId: 'system', // This would typically come from the authenticated user
@@ -239,7 +238,7 @@ export abstract class BaseService<T extends DocumentData> {
         ipAddress: 'unknown' // This would typically come from the request
       };
       
-      await setDoc(doc(auditCollection), {
+      await auditCollection.add({
         ...auditLog,
         createdAt: Timestamp.now()
       });
@@ -253,9 +252,9 @@ export abstract class BaseService<T extends DocumentData> {
    * Execute operations in a transaction
    * @param operation Function that performs the transactional operations
    */
-  async runTransaction(operation: (batch: any) => Promise<void>): Promise<void> {
+  async runTransaction(operation: (batch: WriteBatch) => Promise<void>): Promise<void> {
     try {
-      const batch = writeBatch(this.db as any);
+      const batch = this.db.batch();
       await operation(batch);
       await batch.commit();
     } catch (error) {

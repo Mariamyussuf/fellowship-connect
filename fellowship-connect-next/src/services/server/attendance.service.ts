@@ -3,6 +3,23 @@ import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { Attendance, QRCodeSession } from '../../types/database';
 import { nanoid } from 'nanoid';
+import type FirebaseFirestore from 'firebase-admin/firestore';
+
+interface SessionReport {
+  session: {
+    id: string;
+    [key: string]: unknown;
+  };
+  attendanceCount: number;
+  attendanceRecords: Attendance[];
+}
+
+interface AttendanceStats {
+  totalAttendance: number;
+  uniqueMembers: number;
+  byMethod: Record<string, number>;
+  byDate: Record<string, number>;
+}
 
 /**
  * Attendance Service extending BaseService
@@ -36,7 +53,7 @@ export class AttendanceService extends BaseService<Attendance> {
       const startTime = new Date();
       const endTime = new Date(startTime.getTime() + duration * 60000);
       
-      const sessionData: any = {
+      const sessionData: Omit<QRCodeSession, 'id'> = {
         name,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
@@ -52,14 +69,17 @@ export class AttendanceService extends BaseService<Attendance> {
         createdAt: Timestamp.now()
       });
       
-      const session = { id: docRef.id, ...sessionData };
+      const session: QRCodeSession = { 
+        ...sessionData,
+        id: docRef.id
+      };
       
       // Log audit action
       await this.logAudit('CREATE_SESSION', docRef.id, { ...sessionData, ipAddress });
       
       return { 
         success: true, 
-        session: session as QRCodeSession
+        session
       };
     } catch (error) {
       console.error('Create session error:', error);
@@ -116,7 +136,7 @@ export class AttendanceService extends BaseService<Attendance> {
       
       return { 
         success: true, 
-        qrCodeData: (sessionData as any).qrCodeData 
+        qrCodeData: sessionData.qrCodeData 
       };
     } catch (error) {
       console.error('Generate QR code error:', error);
@@ -247,7 +267,7 @@ export class AttendanceService extends BaseService<Attendance> {
       }
       
       // Create attendance record
-      const attendanceData: Attendance = {
+      const attendanceData: Omit<Attendance, 'id' | 'createdAt'> = {
         userId,
         sessionId,
         timestamp: new Date().toISOString(),
@@ -374,7 +394,7 @@ export class AttendanceService extends BaseService<Attendance> {
   async getSessionReport(
     sessionId: string,
     ipAddress: string = 'unknown'
-  ): Promise<{ success: boolean; report?: any; message?: string }> {
+  ): Promise<{ success: boolean; report?: SessionReport; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -396,11 +416,15 @@ export class AttendanceService extends BaseService<Attendance> {
         .get();
       
       const attendanceRecords: Attendance[] = [];
-      attendanceQuery.forEach((doc: any) => {
-        attendanceRecords.push({ id: doc.id, ...(doc.data() as any) } as Attendance);
+      attendanceQuery.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as Attendance;
+        attendanceRecords.push({
+          ...data,
+          id: doc.id
+        });
       });
       
-      const report = {
+      const report: SessionReport = {
         session: { id: sessionDoc.id, ...sessionData },
         attendanceCount: attendanceRecords.length,
         attendanceRecords
@@ -433,11 +457,11 @@ export class AttendanceService extends BaseService<Attendance> {
     userId: string | undefined,
     dateRange: { start: string; end: string },
     ipAddress: string = 'unknown'
-  ): Promise<{ success: boolean; stats?: any; message?: string }> {
+  ): Promise<{ success: boolean; stats?: AttendanceStats; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('attendance');
+      let query: FirebaseFirestore.Query = db.collection('attendance');
       
       // Apply user filter if provided
       if (userId) {
@@ -452,19 +476,24 @@ export class AttendanceService extends BaseService<Attendance> {
       const querySnapshot = await query.get();
       
       const attendanceRecords: Attendance[] = [];
-      querySnapshot.forEach((doc: any) => {
-        attendanceRecords.push({ id: doc.id, ...(doc.data() as any) } as Attendance);
+      querySnapshot.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as Attendance;
+        attendanceRecords.push({
+          ...data,
+          id: doc.id
+        });
       });
       
       // Calculate statistics
-      const stats = {
+      const stats: AttendanceStats = {
         totalAttendance: attendanceRecords.length,
         uniqueMembers: new Set(attendanceRecords.map(r => r.userId)).size,
-        byMethod: attendanceRecords.reduce((acc: any, record) => {
-          acc[record.method] = (acc[record.method] || 0) + 1;
+        byMethod: attendanceRecords.reduce((acc: Record<string, number>, record) => {
+          const method = record.method || 'unknown';
+          acc[method] = (acc[method] || 0) + 1;
           return acc;
         }, {}),
-        byDate: attendanceRecords.reduce((acc: any, record) => {
+        byDate: attendanceRecords.reduce((acc: Record<string, number>, record) => {
           const date = new Date(record.timestamp).toISOString().split('T')[0];
           acc[date] = (acc[date] || 0) + 1;
           return acc;
@@ -518,15 +547,19 @@ export class AttendanceService extends BaseService<Attendance> {
         .get();
       
       const attendanceRecords: Attendance[] = [];
-      attendanceQuery.forEach((doc: any) => {
-        attendanceRecords.push({ id: doc.id, ...(doc.data() as any) } as Attendance);
+      attendanceQuery.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+        const data = doc.data() as Attendance;
+        attendanceRecords.push({
+          ...data,
+          id: doc.id
+        });
       });
       
       let exportData: string;
       
       if (format === 'json') {
         exportData = JSON.stringify({
-          session: { id: sessionDoc.id, ...(sessionDoc.data() as any) },
+          session: { id: sessionDoc.id, ...(sessionDoc.data() as Record<string, unknown>) },
           attendance: attendanceRecords
         }, null, 2);
       } else {

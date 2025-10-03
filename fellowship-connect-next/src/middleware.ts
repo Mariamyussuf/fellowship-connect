@@ -42,6 +42,13 @@ export async function middleware(request: NextRequest) {
       // Dynamically import firebase admin only when needed to avoid edge runtime issues
       const { auth } = await import('./lib/firebaseAdmin');
       
+      // Check if auth is available
+      if (!auth) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        return NextResponse.redirect(url);
+      }
+      
       // Verify the session cookie
       const decodedClaims = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
       
@@ -68,6 +75,11 @@ export async function middleware(request: NextRequest) {
       try {
         // Dynamically import firebase admin only when needed to avoid edge runtime issues
         const { auth } = await import('./lib/firebaseAdmin');
+        
+        // Check if auth is available
+        if (!auth) {
+          return NextResponse.next();
+        }
         
         // Verify the session cookie
         await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);

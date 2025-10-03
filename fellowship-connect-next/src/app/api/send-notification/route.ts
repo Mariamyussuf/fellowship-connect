@@ -46,11 +46,12 @@ export async function POST(request: NextRequest) {
         error: result.error
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Send notification API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

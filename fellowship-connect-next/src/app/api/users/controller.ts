@@ -1,13 +1,20 @@
-import { db, auth } from '@/lib/firebaseAdmin';
+import { getFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { updateUserProfileSchema, updateUserRoleSchema } from '@/lib/schemas';
 import { AuthenticatedUser } from '@/lib/authMiddleware';
+import type FirebaseFirestore from 'firebase-admin/firestore';
 
 // Get user profile
-export async function getUserProfile(userId: string, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; user?: any }> {
+export async function getUserProfile(userId: string, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; user?: Record<string, unknown> }> {
   try {
     // Check permissions - users can only get their own profile or admins can get any profile
     if (currentUser.uid !== userId && !['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
       return { success: false, error: 'Insufficient permissions' };
+    }
+    
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
     }
     
     // Get user profile from Firestore
@@ -20,20 +27,21 @@ export async function getUserProfile(userId: string, currentUser: AuthenticatedU
     const userData = userDoc.data();
     
     // Remove sensitive information
-    const { ...safeUserData } = userData as any;
+    const { ...safeUserData } = userData as Record<string, unknown>;
     
     return {
       success: true,
       user: safeUserData
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get user profile error:', error);
-    return { success: false, error: error.message || 'Failed to get user profile' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get user profile';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Update user profile
-export async function updateUserProfile(userId: string, data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; user?: any }> {
+export async function updateUserProfile(userId: string, data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; user?: Record<string, unknown> }> {
   try {
     // Validate input
     const validatedData = updateUserProfileSchema.parse(data);
@@ -41,6 +49,12 @@ export async function updateUserProfile(userId: string, data: any, currentUser: 
     // Check permissions - users can only update their own profile or admins can update any profile
     if (currentUser.uid !== userId && !['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
       return { success: false, error: 'Insufficient permissions' };
+    }
+    
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
     }
     
     // Get current user data
@@ -62,16 +76,17 @@ export async function updateUserProfile(userId: string, data: any, currentUser: 
     await db.collection('users').doc(userId).set(updatedUserData, { merge: true });
     
     // Remove sensitive information
-    const { ...safeUserData } = updatedUserData as any;
+    const { ...safeUserData } = updatedUserData as Record<string, unknown>;
     
     return {
       success: true,
       message: 'User profile updated successfully',
       user: safeUserData
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update user profile error:', error);
-    return { success: false, error: error.message || 'Failed to update user profile' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update user profile';
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -81,6 +96,12 @@ export async function deleteUser(userId: string, currentUser: AuthenticatedUser)
     // Only super-admins can delete users
     if (currentUser.role !== 'super-admin') {
       return { success: false, error: 'Insufficient permissions' };
+    }
+    
+    // Get Firebase services
+    const { db, auth } = await getFirebaseAdmin();
+    if (!db || !auth) {
+      return { success: false, error: 'Services not available' };
     }
     
     // Delete user from Firebase Auth
@@ -95,18 +116,25 @@ export async function deleteUser(userId: string, currentUser: AuthenticatedUser)
       success: true,
       message: 'User deleted successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete user error:', error);
-    return { success: false, error: error.message || 'Failed to delete user' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete user';
+    return { success: false, error: errorMessage };
   }
 }
 
 // List users (paginated, admin only)
-export async function listUsers(page: number = 1, limit: number = 10, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; users?: any[]; total?: number }> {
+export async function listUsers(page: number = 1, limit: number = 10, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; users?: Record<string, unknown>[]; total?: number }> {
   try {
     // Only admins can list users
     if (!['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
       return { success: false, error: 'Insufficient permissions' };
+    }
+    
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
     }
     
     // Calculate offset
@@ -121,7 +149,7 @@ export async function listUsers(page: number = 1, limit: number = 10, currentUse
     
     const users = usersSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data() as Record<string, unknown>
     }));
     
     // Get total count
@@ -133,14 +161,15 @@ export async function listUsers(page: number = 1, limit: number = 10, currentUse
       users,
       total
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('List users error:', error);
-    return { success: false, error: error.message || 'Failed to list users' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to list users';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Update user role (super-admin only)
-export async function updateUserRole(userId: string, data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function updateUserRole(userId: string, data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     // Validate input
     const validatedData = updateUserRoleSchema.parse(data);
@@ -148,6 +177,12 @@ export async function updateUserRole(userId: string, data: any, currentUser: Aut
     // Only super-admins can update user roles
     if (currentUser.role !== 'super-admin') {
       return { success: false, error: 'Insufficient permissions' };
+    }
+    
+    // Get Firebase services
+    const { db, auth } = await getFirebaseAdmin();
+    if (!db || !auth) {
+      return { success: false, error: 'Services not available' };
     }
     
     // Update user role in Firebase Auth
@@ -176,8 +211,9 @@ export async function updateUserRole(userId: string, data: any, currentUser: Aut
       success: true,
       message: 'User role updated successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update user role error:', error);
-    return { success: false, error: error.message || 'Failed to update user role' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update user role';
+    return { success: false, error: errorMessage };
   }
 }

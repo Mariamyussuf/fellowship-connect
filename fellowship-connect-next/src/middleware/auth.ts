@@ -15,6 +15,11 @@ export interface AuthenticatedRequest extends NextApiRequest {
   };
 }
 
+interface FirebaseError {
+  code: string;
+  message: string;
+}
+
 /**
  * Middleware that requires authentication
  * @param handler Next.js API route handler
@@ -63,26 +68,29 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
       
       // Call the actual handler
       return handler(req, res);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Authentication error:', error);
       
       // Handle specific Firebase auth errors
-      if (error.code === 'auth/id-token-expired') {
-        return res.status(401).json({ 
-          error: { 
-            code: 'SESSION_EXPIRED', 
-            message: 'Session expired' 
-          } 
-        });
-      }
-      
-      if (error.code === 'auth/id-token-revoked') {
-        return res.status(401).json({ 
-          error: { 
-            code: 'SESSION_REVOKED', 
-            message: 'Session revoked' 
-          } 
-        });
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as FirebaseError;
+        if (firebaseError.code === 'auth/id-token-expired') {
+          return res.status(401).json({ 
+            error: { 
+              code: 'SESSION_EXPIRED', 
+              message: 'Session expired' 
+            } 
+          });
+        }
+        
+        if (firebaseError.code === 'auth/id-token-revoked') {
+          return res.status(401).json({ 
+            error: { 
+              code: 'SESSION_REVOKED', 
+              message: 'Session revoked' 
+            } 
+          });
+        }
       }
       
       return res.status(401).json({ 

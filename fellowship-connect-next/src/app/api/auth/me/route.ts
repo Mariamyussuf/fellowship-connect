@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/auth';
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Get user from auth middleware
-    const user = (request as any).user;
+    const user = (request as AuthenticatedRequest).user;
     
     if (!user) {
       return NextResponse.json({
@@ -38,11 +47,12 @@ export async function GET(request: NextRequest) {
         ...userProfile
       }
     }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get user API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

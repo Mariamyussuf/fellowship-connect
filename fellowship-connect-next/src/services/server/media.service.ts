@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { BaseService } from './base.service';
 import { Media } from '../../types/database';
+import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 /**
  * Media Service extending BaseService
@@ -237,8 +238,8 @@ export class MediaService extends BaseService<Media> {
    */
   async listMedia(
     filters: { category?: string; uploadedBy?: string } = {},
-    pagination: { limit?: number; lastDoc?: any } = {}
-  ): Promise<{ success: boolean; media?: Media[]; lastDoc?: any; message?: string }> {
+    pagination: { limit?: number; lastDoc?: QueryDocumentSnapshot<DocumentData> } = {}
+  ): Promise<{ success: boolean; media?: Media[]; lastDoc?: QueryDocumentSnapshot<DocumentData>; message?: string }> {
     try {
       const { db } = getFirebaseAdmin();
       
@@ -265,8 +266,8 @@ export class MediaService extends BaseService<Media> {
       const querySnapshot = await query.get();
       const media: Media[] = [];
       
-      querySnapshot.forEach((doc: any) => {
-        media.push({ id: doc.id, ...(doc.data() as any) } as Media);
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        media.push({ id: doc.id, ...(doc.data() as Media) } as Media);
       });
       
       const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];

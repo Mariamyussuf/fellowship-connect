@@ -6,6 +6,15 @@ import { withApiWriteRateLimit } from '@/middleware/rate-limit';
 import { withSecurity } from '@/middleware/security';
 import { withErrorHandling } from '@/middleware/error-handler';
 
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 const attendanceService = new AttendanceService();
 
 // Get allowed origins from environment variables
@@ -50,7 +59,7 @@ async function handler(request: NextRequest) {
   }
   
   // Authenticate user
-  const authReq = request as any;
+  const authReq = request as AuthenticatedRequest;
   
   if (!authReq.user) {
     const response = NextResponse.json({

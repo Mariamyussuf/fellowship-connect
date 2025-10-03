@@ -130,7 +130,7 @@ export async function refreshSession(
  */
 export function validateSessionSecurity(
   req: NextApiRequest,
-  session: any
+  session: SessionData
 ): boolean {
   // Check user agent consistency
   if (session.userAgent && req.headers['user-agent'] !== session.userAgent) {

@@ -1,15 +1,60 @@
 import { auth, db } from '@/lib/firebaseAdmin';
 import { signupSchema, loginSchema, resetPasswordSchema } from '@/lib/schemas';
-import { AuthenticatedUser, createSessionCookie } from '@/lib/authMiddleware';
+import { AuthenticatedUser } from '@/lib/authMiddleware';
+import type { UserRecord } from 'firebase-admin/auth';
+
+interface UserProfile {
+  uid: string;
+  email?: string;
+  fullName?: string;
+  department?: string;
+  college?: string;
+  role: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
+  [key: string]: unknown;
+}
+
+interface SignupResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  user?: UserProfile;
+}
+
+interface LoginResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  sessionCookie?: string;
+}
+
+interface BaseResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface FirebaseError {
+  code: string;
+  message: string;
+}
 
 // User registration
-export async function signup(data: any): Promise<{ success: boolean; message?: string; error?: string; user?: any }> {
+export async function signup(data: Record<string, unknown>): Promise<SignupResult> {
   try {
     // Validate input
     const validatedData = signupSchema.parse(data);
     
+    // Check if auth is initialized
+    if (!auth) {
+      return { success: false, error: 'Authentication service not initialized' };
+    }
+    
     // Create user with Firebase Auth (Admin SDK)
-    const userRecord = await auth.createUser({
+    const userRecord: UserRecord = await auth.createUser({
       email: validatedData.email,
       password: validatedData.password,
       displayName: validatedData.fullName,
@@ -18,10 +63,15 @@ export async function signup(data: any): Promise<{ success: boolean; message?: s
     // Send email verification
     await auth.generateEmailVerificationLink(validatedData.email);
     
+    // Check if db is initialized
+    if (!db) {
+      return { success: false, error: 'Database service not initialized' };
+    }
+    
     // Create user profile in Firestore
-    const userProfile = {
+    const userProfile: UserProfile = {
       uid: userRecord.uid,
-      email: userRecord.email,
+      email: userRecord.email || undefined,
       fullName: validatedData.fullName,
       department: validatedData.department,
       college: validatedData.college,
@@ -38,39 +88,53 @@ export async function signup(data: any): Promise<{ success: boolean; message?: s
       message: 'User registered successfully. Please check your email for verification.',
       user: userProfile
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Signup error:', error);
     
     // Handle specific Firebase errors
-    if (error.code === 'auth/email-already-exists') {
-      return { success: false, error: 'Email already in use' };
-    } else if (error.code === 'auth/invalid-email') {
-      return { success: false, error: 'Invalid email address' };
-    } else if (error.code === 'auth/weak-password') {
-      return { success: false, error: 'Password is too weak' };
-    } else {
-      return { success: false, error: error.message || 'Registration failed' };
+    if (error instanceof Error && 'code' in error) {
+      const firebaseError = error as FirebaseError;
+      if (firebaseError.code === 'auth/email-already-exists') {
+        return { success: false, error: 'Email already in use' };
+      } else if (firebaseError.code === 'auth/invalid-email') {
+        return { success: false, error: 'Invalid email address' };
+      } else if (firebaseError.code === 'auth/weak-password') {
+        return { success: false, error: 'Password is too weak' };
+      }
     }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Registration failed';
+    return { success: false, error: errorMessage };
   }
 }
 
 // User login
-export async function login(data: any): Promise<{ success: boolean; message?: string; error?: string; sessionCookie?: string }> {
+export async function login(data: Record<string, unknown>): Promise<LoginResult> {
   try {
     // Validate input
     const validatedData = loginSchema.parse(data);
     
+    // Check if auth is initialized
+    if (!auth) {
+      return { success: false, error: 'Authentication service not initialized' };
+    }
+    
     // Verify user credentials using Firebase Admin SDK
     // Note: In a real implementation, we would verify the user's credentials
     // For now, we'll simulate this by getting the user record
-    let userRecord;
+    let userRecord: UserRecord;
     try {
       userRecord = await auth.getUserByEmail(validatedData.email);
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && (error as FirebaseError).code === 'auth/user-not-found') {
         return { success: false, error: 'User not found' };
       }
       throw error;
+    }
+    
+    // Check if db is initialized
+    if (!db) {
+      return { success: false, error: 'Database service not initialized' };
     }
     
     // In a real implementation, we would verify the password
@@ -82,13 +146,14 @@ export async function login(data: any): Promise<{ success: boolean; message?: st
       return { success: false, error: 'User profile not found' };
     }
     
-    const userProfile = userDoc.data();
+    const userProfile = userDoc.data() as UserProfile | undefined;
     
     // Create custom token for client-side authentication
     const customToken = await auth.createCustomToken(userRecord.uid);
     
     // For session-based auth, we would create a session cookie
     // This is a simplified version - in production, you'd verify the ID token first
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const expiresIn = 60 * 60 * 24 * 7 * 1000; // 7 days
     // Note: To create a session cookie, we need a valid ID token from the client
     // For this implementation, we'll return the custom token instead
@@ -105,15 +170,16 @@ export async function login(data: any): Promise<{ success: boolean; message?: st
       message: 'Login successful',
       sessionCookie
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login error:', error);
     
-    return { success: false, error: error.message || 'Login failed' };
+    const errorMessage = error instanceof Error ? error.message : 'Login failed';
+    return { success: false, error: errorMessage };
   }
 }
 
 // User logout
-export async function logout(): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function logout(): Promise<BaseResult> {
   try {
     // In a real implementation, we would revoke the refresh token
     // For now, we'll just return success
@@ -122,17 +188,23 @@ export async function logout(): Promise<{ success: boolean; message?: string; er
       success: true,
       message: 'Logout successful'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Logout error:', error);
-    return { success: false, error: error.message || 'Logout failed' };
+    const errorMessage = error instanceof Error ? error.message : 'Logout failed';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Password reset
-export async function resetPassword(data: any): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function resetPassword(data: Record<string, unknown>): Promise<BaseResult> {
   try {
     // Validate input
     const validatedData = resetPasswordSchema.parse(data);
+    
+    // Check if auth is initialized
+    if (!auth) {
+      return { success: false, error: 'Authentication service not initialized' };
+    }
     
     // Send password reset email
     const resetLink = await auth.generatePasswordResetLink(validatedData.email);
@@ -145,24 +217,34 @@ export async function resetPassword(data: any): Promise<{ success: boolean; mess
       success: true,
       message: 'Password reset email sent. Please check your inbox.'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Password reset error:', error);
     
-    if (error.code === 'auth/user-not-found') {
-      return { success: false, error: 'User not found' };
-    } else {
-      return { success: false, error: error.message || 'Password reset failed' };
+    if (error instanceof Error && 'code' in error) {
+      const firebaseError = error as FirebaseError;
+      if (firebaseError.code === 'auth/user-not-found') {
+        return { success: false, error: 'User not found' };
+      }
     }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Password reset failed';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Refresh session
-export async function refreshSession(idToken: string): Promise<{ success: boolean; message?: string; error?: string; sessionCookie?: string }> {
+export async function refreshSession(idToken: string): Promise<LoginResult> {
   try {
+    // Check if auth is initialized
+    if (!auth) {
+      return { success: false, error: 'Authentication service not initialized' };
+    }
+    
     // Verify ID token
     const decodedToken = await auth.verifyIdToken(idToken);
     
     // Create new session cookie
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const expiresIn = 60 * 60 * 24 * 7 * 1000; // 7 days
     // Note: To create a session cookie, we need to use the client SDK
     // For this implementation, we'll return a custom token instead
@@ -173,14 +255,15 @@ export async function refreshSession(idToken: string): Promise<{ success: boolea
       message: 'Session refreshed successfully',
       sessionCookie: customToken
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Session refresh error:', error);
-    return { success: false, error: error.message || 'Session refresh failed' };
+    const errorMessage = error instanceof Error ? error.message : 'Session refresh failed';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Verify email
-export async function verifyEmail(oobCode: string): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function verifyEmail(oobCode: string): Promise<BaseResult> {
   try {
     // In a real implementation using Admin SDK, we would handle this differently
     // For now, we'll just return success
@@ -189,8 +272,9 @@ export async function verifyEmail(oobCode: string): Promise<{ success: boolean; 
       success: true,
       message: 'Email verified successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Email verification error:', error);
-    return { success: false, error: error.message || 'Email verification failed' };
+    const errorMessage = error instanceof Error ? error.message : 'Email verification failed';
+    return { success: false, error: errorMessage };
   }
 }

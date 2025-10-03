@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/auth';
 import { requireRole } from '@/middleware/rbac';
-import { PrayerService } from '@/services/server/prayer.service';
-import { UpdatePrayerStatusSchema } from '@/lib/validation';
+import { AttendanceService } from '@/services/server/attendance.service';
+import { CreateSessionSchema } from '@/lib/validation';
 
 // Define the authenticated request type for App Router
 interface AuthenticatedRequest extends NextRequest {
@@ -13,12 +13,10 @@ interface AuthenticatedRequest extends NextRequest {
   };
 }
 
-const prayerService = new PrayerService();
+const attendanceService = new AttendanceService();
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest) {
   try {
-    // Get the params from the context
-    const params = await context.params;
     // Authenticate user
     const authReq = request as AuthenticatedRequest;
     
@@ -31,7 +29,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     
     // Check if user has admin role
     const userRole = authReq.user.role || 'member';
-    const allowedRoles = ['admin', 'super-admin'];
+    const allowedRoles = ['admin', 'super-admin', 'chaplain'];
     const hasRole = allowedRoles.includes(userRole);
     
     if (!hasRole) {
@@ -44,15 +42,20 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const body = await request.json();
     
     // Validate input
-    const validatedData = UpdatePrayerStatusSchema.parse(body);
+    const validatedData = CreateSessionSchema.parse(body);
     
-    const result = await prayerService.updatePrayerStatus(params.id, validatedData.status);
+    const result = await attendanceService.createSession(
+      validatedData.name,
+      validatedData.location,
+      validatedData.duration,
+      authReq.user.id
+    );
     
     if (result.success) {
       return NextResponse.json({
         success: true,
-        message: result.message
-      }, { status: 200 });
+        session: result.session
+      }, { status: 201 });
     } else {
       return NextResponse.json({
         success: false,
@@ -60,7 +63,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       }, { status: 400 });
     }
   } catch (error: unknown) {
-    console.error('Update prayer request status API error:', error);
+    console.error('Create session API error:', error);
     
     // Handle Zod validation errors
     if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
@@ -79,10 +82,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
 }
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+// GET handler for getting all sessions or user-specific sessions
+export async function GET(request: NextRequest) {
   try {
-    // Get the params from the context
-    const params = await context.params;
     // Authenticate user
     const authReq = request as AuthenticatedRequest;
     
@@ -93,33 +95,49 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       }, { status: 401 });
     }
     
-    // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
-    const allowedRoles = ['admin', 'super-admin'];
-    const hasRole = allowedRoles.includes(userRole);
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
     
-    if (!hasRole) {
-      return NextResponse.json({
-        success: false,
-        error: 'Insufficient permissions'
-      }, { status: 403 });
+    // If requesting all sessions, check permissions
+    if (!userId || userId !== authReq.user.id) {
+      const userRole = authReq.user.role || 'member';
+      const allowedRoles = ['admin', 'super-admin', 'chaplain'];
+      const hasRole = allowedRoles.includes(userRole);
+      
+      if (!hasRole) {
+        return NextResponse.json({
+          success: false,
+          error: 'Insufficient permissions'
+        }, { status: 403 });
+      }
     }
     
-    const result = await prayerService.deletePrayerRequest(params.id);
+    const { db } = require('@/lib/firebase-admin').getFirebaseAdmin();
     
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: result.message
-      }, { status: 200 });
-    } else {
-      return NextResponse.json({
-        success: false,
-        error: result.message
-      }, { status: 400 });
+    let query = db.collection('qrCodeSessions');
+    
+    // Filter by user if specified and user has permission
+    if (userId) {
+      query = query.where('createdBy', '==', userId);
     }
+    
+    const snapshot = await query.orderBy('createdAt', 'desc').get();
+    
+    const sessions: any[] = [];
+    snapshot.forEach((doc: any) => {
+      sessions.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return NextResponse.json({
+      success: true,
+      sessions
+    }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Delete prayer request API error:', error);
+    console.error('Get sessions API error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,

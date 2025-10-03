@@ -1,6 +1,16 @@
-import { db } from '@/lib/firebaseAdmin';
+import { getFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { createEvangelismReportSchema } from '@/lib/schemas';
 import { AuthenticatedUser } from '@/lib/authMiddleware';
+import type FirebaseFirestore from 'firebase-admin/firestore';
+
+// Helper function to get initialized db instance
+async function getDb() {
+  const firebaseAdmin = await getFirebaseAdmin();
+  if (!firebaseAdmin.db) {
+    throw new Error('Firebase database is not initialized');
+  }
+  return firebaseAdmin.db;
+}
 
 // Submit evangelism report
 export async function submitEvangelismReport(data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; evangelismReport?: any }> {
@@ -12,6 +22,8 @@ export async function submitEvangelismReport(data: any, currentUser: Authenticat
     if (!currentUser) {
       return { success: false, error: 'Authentication required' };
     }
+    
+    const db = await getDb();
     
     // Create evangelism report in Firestore
     const evangelismReportData = {
@@ -47,8 +59,10 @@ export async function listEvangelismReports(filters: any, currentUser: Authentic
       return { success: false, error: 'Authentication required' };
     }
     
+    const db = await getDb();
+    
     // Build query based on filters
-    let query: any = db.collection('evangelismReports');
+    let query: FirebaseFirestore.Query = db.collection('evangelismReports');
     
     // Filter by user (if not admin, only show own reports)
     if (!['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {

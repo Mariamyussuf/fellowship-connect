@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession, sessionOptions } from '../lib/session';
+import { getSession, sessionOptions, SessionData } from '../lib/session';
 
 /**
  * Session middleware for Next.js API routes
@@ -7,7 +7,7 @@ import { getSession, sessionOptions } from '../lib/session';
  */
 
 export interface AuthenticatedRequest extends NextApiRequest {
-  session?: any;
+  session?: SessionData;
   user?: {
     id: string;
     role: string;

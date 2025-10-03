@@ -1,9 +1,47 @@
-import { db } from '@/lib/firebaseAdmin';
+import { getFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { createPrayerRequestSchema, updatePrayerRequestStatusSchema } from '@/lib/schemas';
 import { AuthenticatedUser } from '@/lib/authMiddleware';
+import type FirebaseFirestore from 'firebase-admin/firestore';
+
+interface PrayerRequest {
+  id?: string;
+  title: string;
+  description: string;
+  isPublic: boolean;
+  isAnonymous: boolean;
+  userId: string;
+  userEmail?: string;
+  userFullName?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'answered';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+interface SubmitPrayerRequestResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  prayerRequest?: PrayerRequest;
+}
+
+interface ListPrayerRequestsResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  prayerRequests?: PrayerRequest[];
+  total?: number;
+}
+
+interface BaseResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
 // Submit prayer request
-export async function submitPrayerRequest(data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; prayerRequest?: any }> {
+export async function submitPrayerRequest(data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<SubmitPrayerRequestResult> {
   try {
     // Validate input
     const validatedData = createPrayerRequestSchema.parse(data);
@@ -13,9 +51,18 @@ export async function submitPrayerRequest(data: any, currentUser: AuthenticatedU
       return { success: false, error: 'Authentication required' };
     }
     
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
+    }
+    
     // Create prayer request in Firestore
-    const prayerRequestData = {
-      ...validatedData,
+    const prayerRequestData: Omit<PrayerRequest, 'id'> = {
+      title: validatedData.title,
+      description: validatedData.description,
+      isPublic: validatedData.isPublic,
+      isAnonymous: validatedData.isAnonymous,
       userId: currentUser.uid,
       userEmail: currentUser.email || '',
       userFullName: currentUser.customClaims?.name || '',
@@ -26,34 +73,51 @@ export async function submitPrayerRequest(data: any, currentUser: AuthenticatedU
     
     const prayerRequestRef = await db.collection('prayerRequests').add(prayerRequestData);
     
+    const fullPrayerRequest: PrayerRequest = {
+      ...prayerRequestData,
+      id: prayerRequestRef.id,
+      title: '',
+      description: '',
+      isPublic: false,
+      isAnonymous: false,
+      userId: '',
+      status: 'pending',
+      createdAt: '',
+      updatedAt: ''
+    };
+    
     return {
       success: true,
       message: 'Prayer request submitted successfully',
-      prayerRequest: {
-        id: prayerRequestRef.id,
-        ...prayerRequestData
-      }
+      prayerRequest: fullPrayerRequest
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Submit prayer request error:', error);
-    return { success: false, error: error.message || 'Failed to submit prayer request' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to submit prayer request';
+    return { success: false, error: errorMessage };
   }
 }
 
 // List prayer requests
-export async function listPrayerRequests(filters: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; prayerRequests?: any[]; total?: number }> {
+export async function listPrayerRequests(filters: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<ListPrayerRequestsResult> {
   try {
     // Only authenticated users can list prayer requests
     if (!currentUser) {
       return { success: false, error: 'Authentication required' };
     }
     
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
+    }
+    
     // Build query based on filters
-    let query: any = db.collection('prayerRequests');
+    let query: FirebaseFirestore.Query = db.collection('prayerRequests');
     
     // Filter by status
     if (filters.status) {
-      query = query.where('status', '==', filters.status);
+      query = query.where('status', '==', filters.status as string);
     }
     
     // Filter by user (if not admin, only show own requests)
@@ -70,8 +134,8 @@ export async function listPrayerRequests(filters: any, currentUser: Authenticate
     query = query.orderBy('createdAt', 'desc');
     
     // Apply pagination
-    const page = filters.page || 1;
-    const limit = filters.limit || 10;
+    const page = (filters.page as number) || 1;
+    const limit = (filters.limit as number) || 10;
     const offset = (page - 1) * limit;
     
     query = query.limit(limit).offset(offset);
@@ -79,10 +143,13 @@ export async function listPrayerRequests(filters: any, currentUser: Authenticate
     // Get prayer requests
     const prayerRequestsSnapshot = await query.get();
     
-    const prayerRequests = prayerRequestsSnapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const prayerRequests: PrayerRequest[] = prayerRequestsSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+      const data = doc.data() as PrayerRequest;
+      return {
+        ...data,
+        id: doc.id
+      };
+    });
     
     // Get total count
     const totalSnapshot = await db.collection('prayerRequests').get();
@@ -93,14 +160,15 @@ export async function listPrayerRequests(filters: any, currentUser: Authenticate
       prayerRequests,
       total
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('List prayer requests error:', error);
-    return { success: false, error: error.message || 'Failed to list prayer requests' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to list prayer requests';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Update prayer request status
-export async function updatePrayerRequestStatus(requestId: string, data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function updatePrayerRequestStatus(requestId: string, data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<BaseResult> {
   try {
     // Validate input
     const validatedData = updatePrayerRequestStatusSchema.parse(data);
@@ -110,6 +178,12 @@ export async function updatePrayerRequestStatus(requestId: string, data: any, cu
       return { success: false, error: 'Authentication required' };
     }
     
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
+    }
+    
     // Get prayer request from Firestore
     const prayerRequestDoc = await db.collection('prayerRequests').doc(requestId).get();
     
@@ -117,7 +191,7 @@ export async function updatePrayerRequestStatus(requestId: string, data: any, cu
       return { success: false, error: 'Prayer request not found' };
     }
     
-    const prayerRequestData = prayerRequestDoc.data();
+    const prayerRequestData = prayerRequestDoc.data() as PrayerRequest | undefined;
     
     // Check permissions - users can only update their own requests or admins can update any
     if (prayerRequestData?.userId !== currentUser.uid && !['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
@@ -135,18 +209,25 @@ export async function updatePrayerRequestStatus(requestId: string, data: any, cu
       success: true,
       message: 'Prayer request status updated successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update prayer request status error:', error);
-    return { success: false, error: error.message || 'Failed to update prayer request status' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update prayer request status';
+    return { success: false, error: errorMessage };
   }
 }
 
 // Delete prayer request
-export async function deletePrayerRequest(requestId: string, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function deletePrayerRequest(requestId: string, currentUser: AuthenticatedUser): Promise<BaseResult> {
   try {
     // Only authenticated users can delete prayer requests
     if (!currentUser) {
       return { success: false, error: 'Authentication required' };
+    }
+    
+    // Get Firebase services
+    const { db } = await getFirebaseAdmin();
+    if (!db) {
+      return { success: false, error: 'Database not available' };
     }
     
     // Get prayer request from Firestore
@@ -156,7 +237,7 @@ export async function deletePrayerRequest(requestId: string, currentUser: Authen
       return { success: false, error: 'Prayer request not found' };
     }
     
-    const prayerRequestData = prayerRequestDoc.data();
+    const prayerRequestData = prayerRequestDoc.data() as PrayerRequest | undefined;
     
     // Check permissions - users can only delete their own requests or admins can delete any
     if (prayerRequestData?.userId !== currentUser.uid && !['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
@@ -170,8 +251,9 @@ export async function deletePrayerRequest(requestId: string, currentUser: Authen
       success: true,
       message: 'Prayer request deleted successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete prayer request error:', error);
-    return { success: false, error: error.message || 'Failed to delete prayer request' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete prayer request';
+    return { success: false, error: errorMessage };
   }
 }

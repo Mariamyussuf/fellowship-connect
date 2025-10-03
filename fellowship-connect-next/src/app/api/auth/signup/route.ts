@@ -43,21 +43,22 @@ export async function POST(request: NextRequest) {
         headers: rateLimitResult.headers || {}
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Signup API error:', error);
     
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
       return NextResponse.json({
         success: false,
         error: 'Validation failed',
-        details: error.errors
+        details: (error as { errors?: unknown }).errors
       }, { status: 400 });
     }
     
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

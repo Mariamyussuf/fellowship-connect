@@ -3,12 +3,21 @@ import { withAuth } from '@/middleware/auth';
 import { NotificationService } from '@/services/server/notification.service';
 import { SendNotificationSchema } from '@/lib/validation';
 
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 const notificationService = new NotificationService();
 
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -31,21 +40,22 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Notification sent successfully'
     }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Send notification API error:', error);
     
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
       return NextResponse.json({
         success: false,
         error: 'Validation failed',
-        details: error.errors
+        details: (error as { errors?: unknown }).errors
       }, { status: 400 });
     }
     
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

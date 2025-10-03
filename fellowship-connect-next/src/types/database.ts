@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
+import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 /**
  * TypeScript interfaces and Zod validation schemas for all Firestore collections
@@ -43,7 +44,8 @@ export const QRCodeSessionSchema = z.object({
   endTime: z.string(),
   location: z.string(),
   createdBy: z.string(),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  qrCodeData: z.string().optional()
 });
 
 export type QRCodeSession = z.infer<typeof QRCodeSessionSchema>;
@@ -156,7 +158,7 @@ export const userConverter = {
       lastLoginAt: user.lastLoginAt
     };
   },
-  fromFirestore(snapshot: any): User {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): User {
     const data = snapshot.data();
     return {
       uid: data.uid,
@@ -181,7 +183,7 @@ export const attendanceConverter = {
       method: attendance.method
     };
   },
-  fromFirestore(snapshot: any): Attendance {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Attendance {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -205,7 +207,7 @@ export const qrCodeSessionConverter = {
       isActive: session.isActive
     };
   },
-  fromFirestore(snapshot: any): QRCodeSession {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): QRCodeSession {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -231,7 +233,7 @@ export const prayerRequestConverter = {
       updatedAt: request.updatedAt
     };
   },
-  fromFirestore(snapshot: any): PrayerRequest {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): PrayerRequest {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -258,7 +260,7 @@ export const welfareSupportConverter = {
       updatedAt: support.updatedAt
     };
   },
-  fromFirestore(snapshot: any): WelfareSupport {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): WelfareSupport {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -286,7 +288,7 @@ export const evangelismReportConverter = {
       updatedAt: report.updatedAt
     };
   },
-  fromFirestore(snapshot: any): EvangelismReport {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): EvangelismReport {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -313,7 +315,7 @@ export const mediaConverter = {
       createdAt: media.createdAt
     };
   },
-  fromFirestore(snapshot: any): Media {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Media {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -338,7 +340,7 @@ export const notificationConverter = {
       sentAt: notification.sentAt
     };
   },
-  fromFirestore(snapshot: any): Notification {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Notification {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -364,7 +366,7 @@ export const auditLogConverter = {
       ipAddress: log.ipAddress
     };
   },
-  fromFirestore(snapshot: any): AuditLog {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): AuditLog {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -388,7 +390,7 @@ export const offlineAttendanceConverter = {
       synced: record.synced
     };
   },
-  fromFirestore(snapshot: any): OfflineAttendance {
+  fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): OfflineAttendance {
     const data = snapshot.data();
     return {
       id: snapshot.id,

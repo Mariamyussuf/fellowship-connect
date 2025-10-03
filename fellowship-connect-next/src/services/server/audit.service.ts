@@ -1,12 +1,12 @@
-import { Timestamp, collection, doc, setDoc, query, where, orderBy, limit, getDocs, getDoc, startAfter } from 'firebase/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { AuditLog } from '../../types/database';
+import type FirebaseFirestore from 'firebase-admin/firestore';
 
 /**
  * Audit Service for comprehensive audit logging
  */
 export class AuditService {
-  private db: any;
+  private db: FirebaseFirestore.Firestore;
 
   constructor() {
     const { db } = getFirebaseAdmin();
@@ -25,24 +25,24 @@ export class AuditService {
     action: string,
     userId: string,
     resource: string,
-    details: Record<string, any> = {},
+    details: Record<string, unknown> = {},
     ipAddress: string = 'unknown'
   ): Promise<void> {
     try {
-      const auditCollection = collection(this.db, 'auditLogs');
+      const auditCollection = this.db.collection('auditLogs');
       const auditLog: AuditLog = {
         action,
         userId,
         resourceType: resource,
-        resourceId: details.resourceId || 'N/A',
+        resourceId: (details.resourceId as string) || 'N/A',
         changes: JSON.stringify(details),
         timestamp: new Date().toISOString(),
         ipAddress
       };
 
-      await setDoc(doc(auditCollection), {
+      await auditCollection.add({
         ...auditLog,
-        createdAt: Timestamp.now()
+        createdAt: new Date()
       });
     } catch (error) {
       console.error('Error logging audit action:', error);
@@ -84,12 +84,12 @@ export class AuditService {
   async logDataChange(
     collection: string,
     documentId: string,
-    before: Record<string, any>,
-    after: Record<string, any>,
+    before: Record<string, unknown>,
+    after: Record<string, unknown>,
     userId: string,
     ipAddress: string = 'unknown'
   ): Promise<void> {
-    const changes: Record<string, { before: any; after: any }> = {};
+    const changes: Record<string, { before: unknown; after: unknown }> = {};
     
     // Find what changed
     const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
@@ -127,7 +127,7 @@ export class AuditService {
     action: string,
     adminId: string,
     target: string,
-    details: Record<string, any> = {},
+    details: Record<string, unknown> = {},
     ipAddress: string = 'unknown'
   ): Promise<void> {
     await this.logAction(
@@ -155,49 +155,44 @@ export class AuditService {
       endDate?: string;
     } = {},
     limitCount: number = 50,
-    lastDoc: any = null
-  ): Promise<{ logs: AuditLog[]; lastDoc: any }> {
+    lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null
+  ): Promise<{ logs: AuditLog[]; lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null }> {
     try {
-      let q: any = query(
-        collection(this.db, 'auditLogs'),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
+      let q: FirebaseFirestore.Query = this.db.collection('auditLogs')
+        .orderBy('createdAt', 'desc')
+        .limit(limitCount);
 
       // Apply filters
       if (filters.action) {
-        q = query(q, where('action', '==', filters.action));
+        q = q.where('action', '==', filters.action);
       }
 
       if (filters.userId) {
-        q = query(q, where('userId', '==', filters.userId));
+        q = q.where('userId', '==', filters.userId);
       }
 
       if (filters.resourceType) {
-        q = query(q, where('resourceType', '==', filters.resourceType));
+        q = q.where('resourceType', '==', filters.resourceType);
       }
 
       if (filters.startDate) {
-        q = query(q, where('createdAt', '>=', new Date(filters.startDate)));
+        q = q.where('createdAt', '>=', new Date(filters.startDate));
       }
 
       if (filters.endDate) {
-        q = query(q, where('createdAt', '<=', new Date(filters.endDate)));
+        q = q.where('createdAt', '<=', new Date(filters.endDate));
       }
 
       // Apply pagination
       if (lastDoc) {
-        const lastDocSnapshot = await getDoc(doc(this.db, 'auditLogs', lastDoc.id));
-        if (lastDocSnapshot.exists()) {
-          q = query(q, startAfter(lastDocSnapshot));
-        }
+        q = q.startAfter(lastDoc);
       }
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await q.get();
       const logs: AuditLog[] = [];
 
       querySnapshot.forEach((docSnapshot) => {
-        const data: any = docSnapshot.data();
+        const data = docSnapshot.data();
         logs.push({
           id: docSnapshot.id,
           action: data.action,
@@ -207,10 +202,10 @@ export class AuditService {
           changes: data.changes,
           timestamp: data.timestamp,
           ipAddress: data.ipAddress
-        } as AuditLog);
+        });
       });
 
-      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
 
       return { logs, lastDoc: lastVisible };
     } catch (error) {

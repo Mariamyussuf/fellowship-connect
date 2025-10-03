@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/auth';
 import { MediaService } from '@/services/server/media.service';
 
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 const mediaService = new MediaService();
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -18,7 +27,7 @@ export async function GET(request: NextRequest) {
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const filters: any = {};
+    const filters: Record<string, unknown> = {};
     
     // Convert pagination to limit/lastDoc
     let limit = 10;
@@ -42,11 +51,12 @@ export async function GET(request: NextRequest) {
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('List media API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

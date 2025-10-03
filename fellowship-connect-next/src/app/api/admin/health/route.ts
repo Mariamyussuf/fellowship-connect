@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminService } from '@/services/server/admin.service';
 
-const adminService = new AdminService();
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+    uid: string;
+  };
+}
 
 // Get client IP from request
 function getClientIP(request: NextRequest): string {
@@ -18,10 +26,12 @@ function getClientIP(request: NextRequest): string {
   return 'unknown';
 }
 
+const adminService = new AdminService();
+
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -58,11 +68,12 @@ export async function GET(request: NextRequest) {
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get system health API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

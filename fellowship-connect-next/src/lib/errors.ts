@@ -10,7 +10,7 @@ export class CustomError extends Error {
     message: string,
     public code: string,
     public statusCode: number,
-    public details?: Record<string, any>
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -28,7 +28,7 @@ export class CustomError extends Error {
 export class ValidationError extends CustomError {
   constructor(
     message: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     super(message, 'VALIDATION_ERROR', 400, details);
   }
@@ -85,10 +85,36 @@ export class RateLimitError extends CustomError {
 export class ServiceError extends CustomError {
   constructor(
     message: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     super(message, 'SERVICE_ERROR', 500, details);
   }
+}
+
+interface FirebaseError {
+  code: string;
+  message: string;
+}
+
+interface ZodError {
+  name: string;
+  errors: unknown[];
+}
+
+interface ErrorInfo {
+  code: string;
+  status: number;
+}
+
+interface ErrorResponse {
+  success: boolean;
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+    timestamp: string;
+  };
+  status: number;
 }
 
 /**
@@ -96,7 +122,7 @@ export class ServiceError extends CustomError {
  * @param error Error object
  * @returns Formatted error response
  */
-export function handleApiError(error: any) {
+export function handleApiError(error: unknown) {
   // Handle known custom errors
   if (error instanceof CustomError) {
     return {
@@ -112,13 +138,14 @@ export function handleApiError(error: any) {
   }
   
   // Handle Zod validation errors
-  if (error.name === 'ZodError') {
+  if (typeof error === 'object' && error !== null && (error as ZodError).name === 'ZodError') {
+    const zodError = error as ZodError;
     return {
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
         message: 'Validation failed',
-        details: error.errors,
+        details: zodError.errors,
         timestamp: new Date().toISOString()
       },
       status: 400
@@ -126,8 +153,9 @@ export function handleApiError(error: any) {
   }
   
   // Handle Firebase errors
-  if (error.code) {
-    const firebaseErrorMap: Record<string, { code: string; status: number }> = {
+  if (typeof error === 'object' && error !== null && (error as FirebaseError).code) {
+    const firebaseError = error as FirebaseError;
+    const firebaseErrorMap: Record<string, ErrorInfo> = {
       'auth/email-already-exists': { code: 'EMAIL_EXISTS', status: 409 },
       'auth/invalid-email': { code: 'INVALID_EMAIL', status: 400 },
       'auth/invalid-password': { code: 'INVALID_PASSWORD', status: 400 },
@@ -136,14 +164,14 @@ export function handleApiError(error: any) {
       'auth/too-many-requests': { code: 'RATE_LIMIT_EXCEEDED', status: 429 }
     };
     
-    const errorInfo = firebaseErrorMap[error.code] || { code: 'FIREBASE_ERROR', status: 500 };
+    const errorInfo = firebaseErrorMap[firebaseError.code] || { code: 'FIREBASE_ERROR', status: 500 };
     
     return {
       success: false,
       error: {
         code: errorInfo.code,
-        message: error.message,
-        details: { firebaseCode: error.code },
+        message: firebaseError.message,
+        details: { firebaseCode: firebaseError.code },
         timestamp: new Date().toISOString()
       },
       status: errorInfo.status
@@ -151,11 +179,13 @@ export function handleApiError(error: any) {
   }
   
   // Handle generic errors
+  const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+  
   return {
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
-      message: error.message || 'Internal server error',
+      message: errorMessage,
       timestamp: new Date().toISOString()
     },
     status: 500

@@ -1,11 +1,16 @@
 // Firebase Admin SDK initialization with edge runtime compatibility
 // This module handles initialization differently based on the runtime environment
 
+import type { App } from 'firebase-admin/app';
+import type { Auth } from 'firebase-admin/auth';
+import type { Firestore } from 'firebase-admin/firestore';
+import type { Storage } from 'firebase-admin/storage';
+
 // Export uninitialized references
-export let app: any = null;
-export let auth: any = null;
-export let db: any = null;
-export let storage: any = null;
+export let app: App | null = null;
+export let auth: Auth | null = null;
+export let db: Firestore | null = null;
+export let storage: Storage | null = null;
 
 // Flag to track initialization status
 let isInitialized = false;
@@ -77,7 +82,7 @@ export async function initializeFirebaseAdmin() {
 
       // Initialize Firebase Admin app
       app = initializeApp({
-        credential: cert(adminConfig as any),
+        credential: cert(adminConfig),
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       });
     }

@@ -1,9 +1,10 @@
 import { db, storage } from '@/lib/firebaseAdmin';
 import { uploadMediaSchema } from '@/lib/schemas';
 import { AuthenticatedUser } from '@/lib/authMiddleware';
+import type FirebaseFirestore from 'firebase-admin/firestore';
 
 // Upload media
-export async function uploadMedia(data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; media?: any }> {
+export async function uploadMedia(data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; media?: Record<string, unknown> }> {
   try {
     // Validate input
     const validatedData = uploadMediaSchema.parse(data);
@@ -11,6 +12,11 @@ export async function uploadMedia(data: any, currentUser: AuthenticatedUser): Pr
     // Only authenticated users can upload media
     if (!currentUser) {
       return { success: false, error: 'Authentication required' };
+    }
+    
+    // Check if db is initialized
+    if (!db) {
+      return { success: false, error: 'Database service not initialized' };
     }
     
     // Create media record in Firestore
@@ -27,6 +33,11 @@ export async function uploadMedia(data: any, currentUser: AuthenticatedUser): Pr
     };
     
     const mediaRef = await db.collection('media').add(mediaData);
+    
+    // Check if storage is initialized
+    if (!storage) {
+      return { success: false, error: 'Storage service not initialized' };
+    }
     
     // Generate signed URL for upload
     const bucket = storage.bucket();
@@ -45,9 +56,10 @@ export async function uploadMedia(data: any, currentUser: AuthenticatedUser): Pr
         uploadUrl: signedUrl
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Upload media error:', error);
-    return { success: false, error: error.message || 'Failed to upload media' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to upload media';
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -59,6 +71,11 @@ export async function getDownloadUrl(mediaId: string, currentUser: Authenticated
       return { success: false, error: 'Authentication required' };
     }
     
+    // Check if db is initialized
+    if (!db) {
+      return { success: false, error: 'Database service not initialized' };
+    }
+    
     // Get media record from Firestore
     const mediaDoc = await db.collection('media').doc(mediaId).get();
     
@@ -66,7 +83,7 @@ export async function getDownloadUrl(mediaId: string, currentUser: Authenticated
       return { success: false, error: 'Media not found' };
     }
     
-    const mediaData = mediaDoc.data();
+    const mediaData = mediaDoc.data() as Record<string, unknown> | undefined;
     
     // Check permissions - users can only download their own media or public media
     if (mediaData?.userId !== currentUser.uid && !mediaData?.isPublic) {
@@ -74,6 +91,11 @@ export async function getDownloadUrl(mediaId: string, currentUser: Authenticated
       if (!['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
         return { success: false, error: 'Insufficient permissions' };
       }
+    }
+    
+    // Check if storage is initialized
+    if (!storage) {
+      return { success: false, error: 'Storage service not initialized' };
     }
     
     // Generate signed URL for download
@@ -84,16 +106,17 @@ export async function getDownloadUrl(mediaId: string, currentUser: Authenticated
     
     // Update download count
     await db.collection('media').doc(mediaId).update({
-      downloadCount: (mediaData?.downloadCount || 0) + 1
+      downloadCount: (mediaData?.downloadCount as number || 0) + 1
     });
     
     return {
       success: true,
       downloadUrl
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get download URL error:', error);
-    return { success: false, error: error.message || 'Failed to get download URL' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get download URL';
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -105,6 +128,11 @@ export async function deleteMedia(mediaId: string, currentUser: AuthenticatedUse
       return { success: false, error: 'Authentication required' };
     }
     
+    // Check if db is initialized
+    if (!db) {
+      return { success: false, error: 'Database service not initialized' };
+    }
+    
     // Get media record from Firestore
     const mediaDoc = await db.collection('media').doc(mediaId).get();
     
@@ -112,11 +140,16 @@ export async function deleteMedia(mediaId: string, currentUser: AuthenticatedUse
       return { success: false, error: 'Media not found' };
     }
     
-    const mediaData = mediaDoc.data();
+    const mediaData = mediaDoc.data() as Record<string, unknown> | undefined;
     
     // Check permissions - users can only delete their own media or admins can delete any
     if (mediaData?.userId !== currentUser.uid && !['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
       return { success: false, error: 'Insufficient permissions' };
+    }
+    
+    // Check if storage is initialized
+    if (!storage) {
+      return { success: false, error: 'Storage service not initialized' };
     }
     
     // Delete file from storage
@@ -131,22 +164,28 @@ export async function deleteMedia(mediaId: string, currentUser: AuthenticatedUse
       success: true,
       message: 'Media deleted successfully'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete media error:', error);
-    return { success: false, error: error.message || 'Failed to delete media' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete media';
+    return { success: false, error: errorMessage };
   }
 }
 
 // List media
-export async function listMedia(filters: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; media?: any[]; total?: number }> {
+export async function listMedia(filters: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; media?: Record<string, unknown>[]; total?: number }> {
   try {
     // Only authenticated users can list media
     if (!currentUser) {
       return { success: false, error: 'Authentication required' };
     }
     
+    // Check if db is initialized
+    if (!db) {
+      return { success: false, error: 'Database service not initialized' };
+    }
+    
     // Build query based on filters
-    let query: any = db.collection('media');
+    let query: FirebaseFirestore.Query = db.collection('media');
     
     // Filter by user (if not admin, only show own media or public media)
     if (!['admin', 'super-admin', 'chaplain'].includes(currentUser.role)) {
@@ -162,8 +201,8 @@ export async function listMedia(filters: any, currentUser: AuthenticatedUser): P
     query = query.orderBy('uploadedAt', 'desc');
     
     // Apply pagination
-    const page = filters.page || 1;
-    const limit = filters.limit || 10;
+    const page = (filters.page as number) || 1;
+    const limit = (filters.limit as number) || 10;
     const offset = (page - 1) * limit;
     
     query = query.limit(limit).offset(offset);
@@ -171,9 +210,9 @@ export async function listMedia(filters: any, currentUser: AuthenticatedUser): P
     // Get media records
     const mediaSnapshot = await query.get();
     
-    const media = mediaSnapshot.docs.map((doc: any) => ({
+    const media = mediaSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data() as Record<string, unknown>
     }));
     
     // Get total count
@@ -185,8 +224,9 @@ export async function listMedia(filters: any, currentUser: AuthenticatedUser): P
       media,
       total
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('List media error:', error);
-    return { success: false, error: error.message || 'Failed to list media' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to list media';
+    return { success: false, error: errorMessage };
   }
 }

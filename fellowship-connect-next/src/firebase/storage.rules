@@ -1,0 +1,82 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is an admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user is a super-admin
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'super-admin';
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Profile photos
+    match /profilePhotos/{userId}/{fileName} {
+      // Users can read all profile photos
+      allow read: if isAuthenticated();
+      // Users can upload their own profile photo
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Media uploads
+    match /media/{category}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // Prayer request attachments
+    match /prayerRequests/{requestId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // Welfare support attachments
+    match /welfareSupport/{supportId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // Evangelism report attachments
+    match /evangelismReports/{reportId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // Event attachments
+    match /events/{eventId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isSuperAdmin();
+    }
+    
+    // Gallery photos
+    match /gallery/{year}/{eventType}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isSuperAdmin();
+    }
+    
+    // Resource files
+    match /resources/{category}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isSuperAdmin();
+    }
+    
+    // Prevent files larger than 100MB
+    match /{allPaths=**} {
+      allow write: if request.resource.size <= 100 * 1024 * 1024;
+      allow read: if true; // Allow read by default for authenticated users
+    }
+  }
+}
