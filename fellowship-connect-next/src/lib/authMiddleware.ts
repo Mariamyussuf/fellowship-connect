@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getFirebaseAdmin } from './firebaseAdmin';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
@@ -17,13 +17,9 @@ export interface AuthenticatedUser {
 }
 
 // Extend the NextRequest type to include our user property
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-      NEXT_PUBLIC_FIREBASE_PROJECT_ID: string;
-      FIREBASE_PRIVATE_KEY: string;
-      FIREBASE_CLIENT_EMAIL: string;
-    }
+declare module 'next/server' {
+  interface NextRequest {
+    user?: AuthenticatedUser;
   }
 }
 

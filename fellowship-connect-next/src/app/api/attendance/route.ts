@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { AttendanceService } from '@/services/server/attendance.service';
 import { CreateSessionSchema } from '@/lib/validation';
+import { AuthenticatedUser } from '@/lib/authMiddleware';
 
 // Define the authenticated request type for App Router
 interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
+  user?: AuthenticatedUser;
 }
 
 const attendanceService = new AttendanceService();
@@ -48,7 +43,7 @@ export async function POST(request: NextRequest) {
       validatedData.name,
       validatedData.location,
       validatedData.duration,
-      authReq.user.id
+      authReq.user.uid
     );
     
     if (result.success) {
@@ -100,7 +95,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     
     // If requesting all sessions, check permissions
-    if (!userId || userId !== authReq.user.id) {
+    if (!userId || userId !== authReq.user.uid) {
       const userRole = authReq.user.role || 'member';
       const allowedRoles = ['admin', 'super-admin', 'chaplain'];
       const hasRole = allowedRoles.includes(userRole);
@@ -113,9 +108,10 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    const { db } = require('@/lib/firebase-admin').getFirebaseAdmin();
+    const { getFirebaseAdmin } = await import('@/lib/firebase-admin');
+    const { db } = getFirebaseAdmin();
     
-    let query = db.collection('qrCodeSessions');
+    let query: FirebaseFirestore.Query = db.collection('qrCodeSessions');
     
     // Filter by user if specified and user has permission
     if (userId) {
@@ -124,8 +120,8 @@ export async function GET(request: NextRequest) {
     
     const snapshot = await query.orderBy('createdAt', 'desc').get();
     
-    const sessions: any[] = [];
-    snapshot.forEach((doc: any) => {
+    const sessions: FirebaseFirestore.DocumentData[] = [];
+    snapshot.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
       sessions.push({
         id: doc.id,
         ...doc.data()

@@ -36,7 +36,7 @@ async function testFirebase() {
     console.log('\nInitializing Firebase Admin SDK...');
     const { getFirebaseAdmin } = await import('../src/lib/firebase-admin');
     
-    const { app, db } = getFirebaseAdmin();
+    const { app: _app, db } = getFirebaseAdmin();
     
     console.log('✅ Firebase Admin SDK initialized successfully!');
     // Use the project ID from environment variables since app.options.projectId might be undefined
@@ -45,7 +45,7 @@ async function testFirebase() {
     // Try a simple database operation
     console.log('\nTesting database connection...');
     const testCollection = db.collection('test');
-    const testDoc = await testCollection.limit(1).get();
+    const _testDoc = await testCollection.limit(1).get();
     console.log('✅ Database connection successful!');
     
   } catch (error) {

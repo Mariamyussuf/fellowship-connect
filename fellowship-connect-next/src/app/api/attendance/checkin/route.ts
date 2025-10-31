@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { AttendanceService } from '@/services/server/attendance.service';
 import { CheckInSchema } from '@/lib/validation';
 import { withApiWriteRateLimit } from '@/middleware/rate-limit';
 import { withSecurity } from '@/middleware/security';
 import { withErrorHandling } from '@/middleware/error-handler';
+import { AuthenticatedUser } from '@/lib/authMiddleware';
 
 // Define the authenticated request type for App Router
 interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
+  user?: AuthenticatedUser;
 }
 
 const attendanceService = new AttendanceService();

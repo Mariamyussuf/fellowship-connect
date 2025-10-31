@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
     nextScriptWorkers: true,
   },
   
+  // Set Turbopack root to current directory to avoid workspace detection issues
+  turbopack: {
+    root: ".",
+  },
+  
   // Move serverComponentsExternalPackages to the correct location
   serverExternalPackages: [
     "firebase-admin",

@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/auth';
+import { requireRole } from '@/middleware/rbac';
 import { PrayerService } from '@/services/server/prayer.service';
 import { SubmitEvangelismReportSchema } from '@/lib/validation';
+import { AuthenticatedUser } from '@/lib/authMiddleware';
+
+// Define the authenticated request type for App Router
+interface AuthenticatedRequest extends NextRequest {
+  user?: AuthenticatedUser;
+}
 
 const prayerService = new PrayerService();
 
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
     const validatedData = SubmitEvangelismReportSchema.parse(body);
     
     const result = await prayerService.submitEvangelismReport(
-      authReq.user.id,
+      authReq.user.uid,
       {
         title: validatedData.title,
         description: validatedData.description,
@@ -47,21 +54,22 @@ export async function POST(request: NextRequest) {
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Submit evangelism report API error:', error);
     
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
       return NextResponse.json({
         success: false,
         error: 'Validation failed',
-        details: error.errors
+        details: (error as { errors?: unknown }).errors
       }, { status: 400 });
     }
     
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }
@@ -69,7 +77,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as any;
+    const authReq = request as AuthenticatedRequest;
     
     if (!authReq.user) {
       return NextResponse.json({
@@ -92,7 +100,7 @@ export async function GET(request: NextRequest) {
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const filters: any = {};
+    const filters: Record<string, unknown> = {};
     
     // Convert pagination to limit/lastDoc
     let limit = 10;
@@ -116,11 +124,12 @@ export async function GET(request: NextRequest) {
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('List evangelism reports API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: errorMessage
     }, { status: 500 });
   }
 }

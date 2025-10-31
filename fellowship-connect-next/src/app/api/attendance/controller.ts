@@ -242,7 +242,7 @@ export async function closeSession(sessionId: string, currentUser: Authenticated
       return { success: false, error: 'Session not found' };
     }
     
-    const sessionData: any = sessionDoc.data();
+    const sessionData = sessionDoc.data() as FirebaseFirestore.DocumentData;
     
     // Check if user is the creator or has admin role
     const allowedRoles = ['admin', 'super-admin', 'chaplain'];
@@ -289,7 +289,7 @@ export async function checkIn(data: Record<string, unknown>, currentUser: Authen
       return { success: false, error: 'Session not found' };
     }
     
-    const sessionData: any = sessionDoc.data();
+    const sessionData = sessionDoc.data() as FirebaseFirestore.DocumentData;
     
     // Check if session is active
     if (!sessionData?.isActive) {
@@ -443,7 +443,7 @@ export async function generateReports(filters: Record<string, unknown>, currentU
     const attendanceSnapshot = await query.get();
     
     const attendanceRecords: AttendanceRecord[] = attendanceSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
-      const data: any = doc.data();
+      const data = doc.data() as FirebaseFirestore.DocumentData;
       return {
         id: doc.id,
         sessionId: data.sessionId as string,

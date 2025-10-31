@@ -164,7 +164,7 @@ export class NotificationService extends BaseService<Notification> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('notifications')
+      let query: FirebaseFirestore.Query = db.collection('notifications')
         .where('userId', '==', userId)
         .orderBy('sentAt', 'desc');
       

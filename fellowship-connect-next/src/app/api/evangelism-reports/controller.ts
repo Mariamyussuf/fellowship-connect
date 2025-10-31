@@ -13,7 +13,7 @@ async function getDb() {
 }
 
 // Submit evangelism report
-export async function submitEvangelismReport(data: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; evangelismReport?: any }> {
+export async function submitEvangelismReport(data: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; evangelismReport?: Record<string, unknown> }> {
   try {
     // Validate input
     const validatedData = createEvangelismReportSchema.parse(data);
@@ -45,14 +45,15 @@ export async function submitEvangelismReport(data: any, currentUser: Authenticat
         ...evangelismReportData
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Submit evangelism report error:', error);
-    return { success: false, error: error.message || 'Failed to submit evangelism report' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to submit evangelism report';
+    return { success: false, error: errorMessage };
   }
 }
 
 // List evangelism reports
-export async function listEvangelismReports(filters: any, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; evangelismReports?: any[]; total?: number }> {
+export async function listEvangelismReports(filters: Record<string, unknown>, currentUser: AuthenticatedUser): Promise<{ success: boolean; message?: string; error?: string; evangelismReports?: Record<string, unknown>[]; total?: number }> {
   try {
     // Only authenticated users can list evangelism reports
     if (!currentUser) {
@@ -73,8 +74,8 @@ export async function listEvangelismReports(filters: any, currentUser: Authentic
     query = query.orderBy('createdAt', 'desc');
     
     // Apply pagination
-    const page = filters.page || 1;
-    const limit = filters.limit || 10;
+    const page = (filters.page as number) || 1;
+    const limit = (filters.limit as number) || 10;
     const offset = (page - 1) * limit;
     
     query = query.limit(limit).offset(offset);
@@ -82,7 +83,7 @@ export async function listEvangelismReports(filters: any, currentUser: Authentic
     // Get evangelism reports
     const evangelismReportsSnapshot = await query.get();
     
-    const evangelismReports = evangelismReportsSnapshot.docs.map((doc: any) => ({
+    const evangelismReports = evangelismReportsSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
       id: doc.id,
       ...doc.data()
     }));
@@ -96,8 +97,9 @@ export async function listEvangelismReports(filters: any, currentUser: Authentic
       evangelismReports,
       total
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('List evangelism reports error:', error);
-    return { success: false, error: error.message || 'Failed to list evangelism reports' };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to list evangelism reports';
+    return { success: false, error: errorMessage };
   }
 }

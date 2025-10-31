@@ -1,4 +1,4 @@
-import { CollectionReference, DocumentData, Query, QuerySnapshot, Timestamp, DocumentReference, QueryDocumentSnapshot, WriteBatch } from 'firebase-admin/firestore';
+import { CollectionReference, DocumentData, Query, QuerySnapshot, Timestamp, DocumentReference, QueryDocumentSnapshot, WriteBatch, FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import { AuditLog } from '../../types/database';
 
@@ -30,7 +30,7 @@ export abstract class BaseService<T extends DocumentData> {
   async create(data: Partial<T>, id?: string): Promise<string> {
     try {
       const timestamp = Timestamp.now();
-      const documentData: any = {
+      const documentData = {
         ...data,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -39,15 +39,15 @@ export abstract class BaseService<T extends DocumentData> {
       let docRef: DocumentReference<T>;
       if (id) {
         docRef = this.collectionRef.doc(id);
-        await docRef.set(documentData);
+        await docRef.set(documentData as unknown as T);
         return docRef.id;
       } else {
-        docRef = await this.collectionRef.add(documentData);
+        docRef = await this.collectionRef.add(documentData as unknown as T);
         return docRef.id;
       }
 
       // Log audit action
-      await this.logAudit('CREATE', id || docRef.id, documentData);
+      await this.logAudit('CREATE', id || docRef.id, data);
 
       return docRef.id;
     } catch (error) {
@@ -86,12 +86,12 @@ export abstract class BaseService<T extends DocumentData> {
   async update(id: string, data: Partial<T>): Promise<boolean> {
     try {
       const docRef = this.collectionRef.doc(id);
-      const updateData: any = {
+      const updateData = {
         ...data,
         updatedAt: Timestamp.now()
       };
       
-      await docRef.update(updateData);
+      await docRef.update(updateData as Partial<T>);
       
       // Log audit action
       await this.logAudit('UPDATE', id, data);
@@ -113,11 +113,13 @@ export abstract class BaseService<T extends DocumentData> {
       const docRef = this.collectionRef.doc(id);
       
       // Soft delete by setting deleted flag and deletedAt timestamp
-      await docRef.update({
+      const deleteData = {
         deleted: true,
         deletedAt: Timestamp.now(),
         updatedAt: Timestamp.now()
-      } as any);
+      };
+      
+      await docRef.update(deleteData as unknown as Partial<T>);
       
       // Log audit action
       await this.logAudit('DELETE', id, {});
@@ -157,10 +159,10 @@ export abstract class BaseService<T extends DocumentData> {
    * @returns Array of documents
    */
   async list(
-    filters: Record<string, any> = {},
+    filters: Record<string, unknown> = {},
     limitCount: number = 20,
-    lastDoc: any = null
-  ): Promise<{ data: T[]; lastDoc: any }> {
+    lastDoc: QueryDocumentSnapshot<T> | null = null
+  ): Promise<{ data: T[]; lastDoc: QueryDocumentSnapshot<T> | null }> {
     try {
       let query = this.collectionRef.orderBy('createdAt', 'desc').limit(limitCount);
       
@@ -183,7 +185,7 @@ export abstract class BaseService<T extends DocumentData> {
         data.push({ id: doc.id, ...doc.data() } as unknown as T);
       });
       
-      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
       
       return { data, lastDoc: lastVisible };
     } catch (error) {
@@ -198,7 +200,7 @@ export abstract class BaseService<T extends DocumentData> {
    * @param value Field value to match
    * @returns Array of matching documents
    */
-  async findByField(field: string, value: any): Promise<T[]> {
+  async findByField(field: string, value: unknown): Promise<T[]> {
     try {
       const query = this.collectionRef.where(field, '==', value);
       const querySnapshot = await query.get();
@@ -224,7 +226,7 @@ export abstract class BaseService<T extends DocumentData> {
   protected async logAudit(
     action: string,
     resourceId: string,
-    changes: Record<string, any>
+    changes: Record<string, unknown>
   ): Promise<void> {
     try {
       const auditCollection = this.db.collection('auditLogs');

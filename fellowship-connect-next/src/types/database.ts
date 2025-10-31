@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp as _Timestamp } from 'firebase/firestore';
 import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 /**

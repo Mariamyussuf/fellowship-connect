@@ -128,7 +128,7 @@ export class UserService extends BaseService<User> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('users').orderBy('createdAt', 'desc');
+      let query: FirebaseFirestore.Query = db.collection('users').orderBy('createdAt', 'desc');
       
       // Apply filters
       if (filters.role) {

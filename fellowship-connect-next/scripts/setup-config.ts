@@ -22,8 +22,8 @@ interface AppConfig {
   fellowshipName: string;
   fellowshipLocation: string;
   timeZone: string;
-  createdAt: any; // Will be replaced with Timestamp
-  updatedAt: any; // Will be replaced with Timestamp
+  createdAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
+  updatedAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
 }
 
 interface FeatureConfig {
@@ -35,8 +35,8 @@ interface FeatureConfig {
   mediaGallery: boolean;
   notifications: boolean;
   offlineMode: boolean;
-  createdAt: any; // Will be replaced with Timestamp
-  updatedAt: any; // Will be replaced with Timestamp
+  createdAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
+  updatedAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
 }
 
 interface SecurityConfig {
@@ -46,8 +46,8 @@ interface SecurityConfig {
   passwordMinLength: number;
   requireEmailVerification: boolean;
   twoFactorAuth: boolean;
-  createdAt: any; // Will be replaced with Timestamp
-  updatedAt: any; // Will be replaced with Timestamp
+  createdAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
+  updatedAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
 }
 
 async function setupConfig() {

@@ -8,7 +8,8 @@
  */
 
 // Load environment variables from .env file if it exists
-require('dotenv').config();
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 async function initDatabase() {
   try {
@@ -38,9 +39,9 @@ async function initDatabase() {
     }
     
     // Dynamically import Firebase Admin SDK only when needed
-    const { getFirebaseAdmin } = require('../src/lib/firebase-admin');
-    const admin = require('firebase-admin');
-    const Timestamp = admin.firestore.Timestamp;
+    const { getFirebaseAdmin } = await import('../src/lib/firebase-admin');
+    const _admin = await import('firebase-admin');
+    const { Timestamp } = await import('firebase-admin/firestore');
     
     const { db } = getFirebaseAdmin();
     
@@ -73,4 +74,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = initDatabase;
+export default initDatabase;

@@ -7,7 +7,7 @@
  * 
  * Usage:
  * ```ts
- * const { getFirebaseAdmin } = require('@/lib/firebase-admin');
+ * import { getFirebaseAdmin } from '@/lib/firebase-admin';
  * const { app, db, auth, storage } = getFirebaseAdmin();
  * ```
  */
@@ -25,7 +25,7 @@ let storageInstance;
  * @returns Object containing Firebase Admin instances
  * @throws Error if Firebase Admin credentials are not set
  */
-function getFirebaseAdmin() {
+async function getFirebaseAdmin() {
   // Check if required environment variables are set
   const requiredEnvVars = [
     'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
@@ -50,7 +50,7 @@ function getFirebaseAdmin() {
   }
   
   // Import Firebase Admin SDK dynamically
-  const admin = require('firebase-admin');
+  const admin = await import('firebase-admin');
   
   // Initialize Firebase Admin SDK if not already initialized
   if (admin.apps.length === 0) {
@@ -78,4 +78,4 @@ function getFirebaseAdmin() {
   };
 }
 
-module.exports = { getFirebaseAdmin };
+export { getFirebaseAdmin };

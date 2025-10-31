@@ -32,7 +32,7 @@ async function seedData() {
     
     // Dynamically import Firebase Admin SDK only when needed
     const { getFirebaseAdmin } = await import('../src/lib/firebase-admin');
-    const { Timestamp } = await import('firebase-admin/firestore');
+    const { Timestamp: _Timestamp } = await import('firebase-admin/firestore');
     
     const { db } = getFirebaseAdmin();
     
@@ -130,7 +130,7 @@ async function seedData() {
     
     for (const request of samplePrayerRequests) {
       try {
-        const docRef = await prayerRequestsCollection.add(request);
+        const _docRef = await prayerRequestsCollection.add(request);
         console.log(`Created prayer request: ${request.title}`);
       } catch (error) {
         console.error(`Failed to create prayer request ${request.title}:`, error);
@@ -169,7 +169,7 @@ async function seedData() {
     
     for (const event of sampleEvents) {
       try {
-        const docRef = await eventsCollection.add(event);
+        const _docRef = await eventsCollection.add(event);
         console.log(`Created event: ${event.title}`);
       } catch (error) {
         console.error(`Failed to create event ${event.title}:`, error);
@@ -203,7 +203,7 @@ async function seedData() {
     
     for (const announcement of sampleAnnouncements) {
       try {
-        const docRef = await announcementsCollection.add(announcement);
+        const _docRef = await announcementsCollection.add(announcement);
         console.log(`Created announcement: ${announcement.title}`);
       } catch (error) {
         console.error(`Failed to create announcement ${announcement.title}:`, error);

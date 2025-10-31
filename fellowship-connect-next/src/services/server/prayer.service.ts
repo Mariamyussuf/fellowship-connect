@@ -73,7 +73,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('prayerRequests').orderBy('createdAt', 'desc');
+      let query: FirebaseFirestore.Query = db.collection('prayerRequests').orderBy('createdAt', 'desc');
       
       // Apply filters
       if (filters.status) {
@@ -97,12 +97,13 @@ export class PrayerService extends BaseService<PrayerRequest> {
       const requests: PrayerRequest[] = [];
       
       querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const requestData: any = { id: doc.id, ...(doc.data() as any) };
+        const docData = doc.data() as FirebaseFirestore.DocumentData;
+        const requestData = { id: doc.id, ...docData };
         
         // Hide user info for anonymous requests
-        if (requestData.isAnonymous) {
-          delete requestData.userId;
-          delete requestData.userName;
+        if (docData.isAnonymous) {
+          delete (requestData as Partial<{ userId: string }>).userId;
+          // userName is not part of PrayerRequest interface, so no need to delete it
         }
         
         requests.push(requestData as PrayerRequest);
@@ -205,7 +206,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
         userId,
         category: data.category,
         description: data.description,
-        urgency: data.urgency as any,
+        urgency: data.urgency as 'low' | 'medium' | 'high' | 'critical',
         status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -246,7 +247,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('welfareSupport').orderBy('createdAt', 'desc');
+      let query: FirebaseFirestore.Query = db.collection('welfareSupport').orderBy('createdAt', 'desc');
       
       // Apply filters
       if (filters.status) {
@@ -266,12 +267,13 @@ export class PrayerService extends BaseService<PrayerRequest> {
       const requests: WelfareSupport[] = [];
       
       querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const requestData: any = { id: doc.id, ...(doc.data() as any) };
+        const docData = doc.data() as FirebaseFirestore.DocumentData;
+        const requestData = { id: doc.id, ...docData };
         
         // Hide user info for anonymous requests
-        if (requestData.isAnonymous) {
-          delete requestData.userId;
-          delete requestData.userName;
+        if (docData.isAnonymous) {
+          delete (requestData as Partial<WelfareSupport>).userId;
+          // userName is not part of WelfareSupport interface, so no need to delete it
         }
         
         requests.push(requestData as WelfareSupport);
@@ -363,9 +365,9 @@ export class PrayerService extends BaseService<PrayerRequest> {
       };
       
       // Add optional fields
-      if (data.title) (reportData as any).title = data.title;
-      if (data.description) (reportData as any).description = data.description;
-      if (data.followUpRequired !== undefined) (reportData as any).followUpRequired = data.followUpRequired;
+      if (data.title) (reportData as FirebaseFirestore.DocumentData).title = data.title;
+      if (data.description) (reportData as FirebaseFirestore.DocumentData).description = data.description;
+      if (data.followUpRequired !== undefined) (reportData as FirebaseFirestore.DocumentData).followUpRequired = data.followUpRequired;
       
       const docRef = await db.collection('evangelismReports').add({
         ...reportData,
@@ -402,7 +404,7 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('evangelismReports').orderBy('createdAt', 'desc');
+      let query: FirebaseFirestore.Query = db.collection('evangelismReports').orderBy('createdAt', 'desc');
       
       // Apply filters
       if (filters.status) {

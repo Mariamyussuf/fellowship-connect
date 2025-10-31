@@ -16,8 +16,8 @@ interface Role {
   name: string;
   description: string;
   permissions: string[];
-  createdAt: any; // Will be replaced with Timestamp
-  updatedAt: any; // Will be replaced with Timestamp
+  createdAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
+  updatedAt: FirebaseFirestore.Timestamp; // Will be replaced with Timestamp
 }
 
 async function setupRoles() {

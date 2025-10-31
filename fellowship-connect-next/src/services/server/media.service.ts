@@ -243,7 +243,7 @@ export class MediaService extends BaseService<Media> {
     try {
       const { db } = getFirebaseAdmin();
       
-      let query: any = db.collection('media').orderBy('createdAt', 'desc');
+      let query: FirebaseFirestore.Query = db.collection('media').orderBy('createdAt', 'desc');
       
       // Apply filters
       if (filters.category) {

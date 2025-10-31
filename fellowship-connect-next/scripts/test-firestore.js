@@ -4,14 +4,15 @@
  */
 
 // Load environment variables from .env file if it exists
-require('dotenv').config();
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 async function testFirestore() {
   try {
     console.log('Testing Firestore connectivity...');
     
     // Dynamically import Firebase Admin SDK only when needed
-    const { getFirebaseAdmin } = require('../src/lib/firebase-admin');
+    const { getFirebaseAdmin } = await import('../src/lib/firebase-admin');
     const { db } = getFirebaseAdmin();
     
     console.log('Firebase Admin SDK initialized successfully');
@@ -48,4 +49,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = testFirestore;
+export default testFirestore;
