@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/services/server/auth.service';
-import { withAuth } from '@/middleware/auth';
 
 const authService = new AuthService();
 
 export async function POST(request: NextRequest) {
   try {
     // Get session ID from cookie
-    const sessionId = request.cookies.get('session')?.value;
+    const sessionCookie = request.cookies.get('session')?.value;
     
-    if (!sessionId) {
+    if (!sessionCookie) {
       return NextResponse.json({
         success: false,
         error: 'No active session'
       }, { status: 400 });
     }
-    
-    const result = await authService.logout(sessionId);
+     
+    const result = await authService.logout(sessionCookie);
     
     if (result.success) {
       // Clear session cookie
@@ -25,7 +24,13 @@ export async function POST(request: NextRequest) {
         message: result.message
       }, { status: 200 });
       
-      response.cookies.delete('session');
+      response.cookies.set('session', '', {
+        maxAge: 0,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+      });
       
       return response;
     } else {

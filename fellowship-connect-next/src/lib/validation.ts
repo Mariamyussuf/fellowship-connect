@@ -12,8 +12,13 @@ export const SignupSchema = z.object({
 });
 
 export const LoginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required')
+  idToken: z.string().min(1, 'ID token is required'),
+  rememberMe: z.boolean().optional()
+});
+
+export const RefreshSessionSchema = z.object({
+  idToken: z.string().min(1, 'ID token is required for refresh'),
+  rememberMe: z.boolean().optional()
 });
 
 export const ResetPasswordSchema = z.object({
@@ -119,6 +124,7 @@ export const UpdateNotificationPreferencesSchema = z.object({
 // Export types
 export type SignupInput = z.infer<typeof SignupSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type RefreshSessionInput = z.infer<typeof RefreshSessionSchema>;
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
 export type UpdatePasswordInput = z.infer<typeof UpdatePasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;

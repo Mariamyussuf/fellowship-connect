@@ -38,9 +38,9 @@ async function handler(request: NextRequest) {
   // Validate input
   const validatedData = LoginSchema.parse(body);
   
-  const result = await authService.login(
-    validatedData.email,
-    validatedData.password
+  const result = await authService.loginWithIdToken(
+    validatedData.idToken,
+    validatedData.rememberMe ?? false
   );
   
   if (result.success) {
@@ -65,8 +65,9 @@ async function handler(request: NextRequest) {
     }
     
     if (result.sessionCookie) {
+      const maxAge = (validatedData.rememberMe ? 60 * 60 * 24 * 14 : 60 * 60 * 24);
       response.cookies.set('session', result.sessionCookie, {
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',

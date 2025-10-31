@@ -1,5 +1,7 @@
 import { auth, db } from '@/lib/firebaseAdmin';
-import { signupSchema, loginSchema, resetPasswordSchema } from '@/lib/schemas';
+import { signupSchema, resetPasswordSchema } from '@/lib/schemas';
+import { LoginSchema } from '@/lib/validation';
+
 import { AuthenticatedUser } from '@/lib/authMiddleware';
 import type { UserRecord } from 'firebase-admin/auth';
 
@@ -111,59 +113,42 @@ export async function signup(data: Record<string, unknown>): Promise<SignupResul
 // User login
 export async function login(data: Record<string, unknown>): Promise<LoginResult> {
   try {
-    // Validate input
-    const validatedData = loginSchema.parse(data);
+    const validatedData = LoginSchema.parse(data);
     
     // Check if auth is initialized
     if (!auth) {
       return { success: false, error: 'Authentication service not initialized' };
     }
     
-    // Verify user credentials using Firebase Admin SDK
-    // Note: In a real implementation, we would verify the user's credentials
-    // For now, we'll simulate this by getting the user record
-    let userRecord: UserRecord;
-    try {
-      userRecord = await auth.getUserByEmail(validatedData.email);
-    } catch (error: unknown) {
-      if (error instanceof Error && 'code' in error && (error as FirebaseError).code === 'auth/user-not-found') {
-        return { success: false, error: 'User not found' };
-      }
-      throw error;
-    }
+    // Verify ID token
+    const decodedIdToken = await auth.verifyIdToken(validatedData.idToken, true);
     
-    // Check if db is initialized
-    if (!db) {
-      return { success: false, error: 'Database service not initialized' };
-    }
-    
-    // In a real implementation, we would verify the password
-    // For now, we'll assume the credentials are valid
-    
-    // Get user profile from Firestore
-    const userDoc = await db.collection('users').doc(userRecord.uid).get();
-    if (!userDoc.exists) {
-      return { success: false, error: 'User profile not found' };
-    }
-    
-    const userProfile = userDoc.data() as UserProfile | undefined;
-    
-    // Create custom token for client-side authentication
-    const customToken = await auth.createCustomToken(userRecord.uid);
-    
-    // For session-based auth, we would create a session cookie
-    // This is a simplified version - in production, you'd verify the ID token first
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const expiresIn = 60 * 60 * 24 * 7 * 1000; // 7 days
-    // Note: To create a session cookie, we need a valid ID token from the client
-    // For this implementation, we'll return the custom token instead
-    const sessionCookie = customToken;
+    // Create new session cookie
+    const sessionCookie = await auth.createSessionCookie(validatedData.idToken, {
+      expiresIn: validatedData.rememberMe ? 1000 * 60 * 60 * 24 * 14 : 1000 * 60 * 60 * 24
+    });
     
     // Update last login time
-    await db.collection('users').doc(userRecord.uid).set({
-      ...userProfile,
-      lastLoginAt: new Date().toISOString()
-    }, { merge: true });
+    if (db) {
+      const userDoc = await db.collection('users').doc(decodedIdToken.uid).get();
+      if (!userDoc.exists) {
+        await db.collection('users').doc(decodedIdToken.uid).set({
+          uid: decodedIdToken.uid,
+          email: decodedIdToken.email || null,
+          displayName: decodedIdToken.name || null,
+          role: 'member',
+          active: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString()
+        }, { merge: true });
+      } else {
+        await db.collection('users').doc(decodedIdToken.uid).set({
+          lastLoginAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+    }
     
     return {
       success: true,
