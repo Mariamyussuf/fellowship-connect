@@ -1,27 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { MediaService } from '@/services/server/media.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const mediaService = new MediaService();
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+function getClientIP(request: NextRequest): string {
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+
+  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+
+  return 'unknown';
+}
+
+export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -29,7 +30,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -40,7 +41,9 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       }, { status: 403 });
     }
     
-    const result = await mediaService.deleteFile(params.id);
+    const ipAddress = getClientIP(request);
+    console.log('Deleting media file', { id, userId: user.uid, role: userRole, ipAddress });
+    const result = await mediaService.deleteFile(id);
     
     if (result.success) {
       return NextResponse.json({
