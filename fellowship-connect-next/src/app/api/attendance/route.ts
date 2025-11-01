@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceService } from '@/services/server/attendance.service';
 import { CreateSessionSchema } from '@/lib/validation';
-import { AuthenticatedUser } from '@/lib/authMiddleware';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: AuthenticatedUser;
-}
 
 const attendanceService = new AttendanceService();
 
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -23,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin', 'chaplain'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -43,7 +37,7 @@ export async function POST(request: NextRequest) {
       validatedData.name,
       validatedData.location,
       validatedData.duration,
-      authReq.user.uid
+      user.uid
     );
     
     if (result.success) {
@@ -81,9 +75,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -95,8 +89,8 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     
     // If requesting all sessions, check permissions
-    if (!userId || userId !== authReq.user.uid) {
-      const userRole = authReq.user.role || 'member';
+    if (!userId || userId !== user.uid) {
+      const userRole = user.role || 'member';
       const allowedRoles = ['admin', 'super-admin', 'chaplain'];
       const hasRole = allowedRoles.includes(userRole);
       

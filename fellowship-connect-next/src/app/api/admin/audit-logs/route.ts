@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminService } from '@/services/server/admin.service';
-import { AuthenticatedUser } from '@/lib/authMiddleware';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: AuthenticatedUser;
-}
 
 const adminService = new AdminService();
 
@@ -27,9 +21,9 @@ function getClientIP(request: NextRequest): string {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -37,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Check if user has admin role (audit logs should only be accessible by super-admin)
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -63,7 +57,7 @@ export async function GET(request: NextRequest) {
     // Get pagination parameters
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit') || '10') : 10;
     
-    const userId = authReq.user.uid;
+    const userId = user.uid;
     const ipAddress = getClientIP(request);
     
     const result = await adminService.getAuditLogs(filters, { limit }, userId, ipAddress);

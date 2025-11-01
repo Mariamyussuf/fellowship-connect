@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/auth';
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
-
 export async function GET(request: NextRequest) {
   try {
     // Get user from auth middleware
-    const user = (request as AuthenticatedRequest).user;
+    const user = request.user;
     
     if (!user) {
       return NextResponse.json({
@@ -27,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { db } = getFirebaseAdmin();
     
     // Fetch user profile from Firestore
-    const userDoc = await db.collection('users').doc(user.id).get();
+    const userDoc = await db.collection('users').doc(user.uid).get();
     
     if (!userDoc.exists) {
       return NextResponse.json({
@@ -41,7 +32,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user: {
-        id: user.id,
+        id: user.uid,
         email: user.email,
         role: user.role,
         ...userProfile
