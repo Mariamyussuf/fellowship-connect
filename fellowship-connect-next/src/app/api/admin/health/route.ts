@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminService } from '@/services/server/admin.service';
-import { AuthenticatedUser } from '@/lib/authMiddleware';
+import { AuthenticatedUser, authenticateUser } from '@/lib/authMiddleware';
+
+// Extend NextRequest to include user property
+declare module 'next/server' {
+  interface NextRequest {
+    user?: AuthenticatedUser;
+  }
+}
 
 // Get client IP from request
 function getClientIP(request: NextRequest): string {
@@ -22,7 +29,14 @@ const adminService = new AdminService();
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const user = request.user;
+    const { success, user, error } = await authenticateUser(request);
+    
+    if (!success || !user) {
+      return NextResponse.json(
+        { success: false, error: error || 'Authentication required' },
+        { status: 401 }
+      );
+    }
     
     if (!user) {
       return NextResponse.json({
