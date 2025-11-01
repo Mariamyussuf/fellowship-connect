@@ -17,9 +17,19 @@ function getClientIP(request: NextRequest): string {
   return 'unknown';
 }
 
-export async function GET(request: NextRequest, context: { params: { sessionId: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Record<string, string | string[]> }
+) {
   try {
-    const { sessionId } = context.params;
+    const rawSessionId = context.params?.sessionId;
+    const sessionId = Array.isArray(rawSessionId) ? rawSessionId[0] : rawSessionId;
+
+    if (!sessionId) {
+      return NextResponse.json({
+        error: 'Session ID is required'
+      }, { status: 400 });
+    }
     const user = request.user;
 
     if (!user) {
