@@ -17,13 +17,18 @@ function getClientIP(request: NextRequest): string {
   return 'unknown';
 }
 
+interface RouteContext {
+  params: {
+    sessionId: string;
+  };
+}
+
 export async function GET(
   request: NextRequest,
-  context: { params: Record<string, string | string[]> }
+  { params }: RouteContext
 ) {
   try {
-    const rawSessionId = context.params?.sessionId;
-    const sessionId = Array.isArray(rawSessionId) ? rawSessionId[0] : rawSessionId;
+    const sessionId = params.sessionId;
 
     if (!sessionId) {
       return NextResponse.json({
