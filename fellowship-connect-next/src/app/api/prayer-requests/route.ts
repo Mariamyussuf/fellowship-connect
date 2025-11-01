@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { PrayerService } from '@/services/server/prayer.service';
 import { SubmitPrayerRequestSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const prayerService = new PrayerService();
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -31,8 +20,9 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = SubmitPrayerRequestSchema.parse(body);
     
+    console.log('Submitting prayer request', { userId: user.uid });
     const result = await prayerService.submitPrayerRequest(
-      authReq.user.id,
+      user.uid,
       {
         title: validatedData.title,
         description: validatedData.description,
@@ -56,15 +46,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Submit prayer request API error:', error);
     
-    // Handle Zod validation errors
-    if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
-      return NextResponse.json({
-        success: false,
-        error: 'Validation failed',
-        details: (error as { errors?: unknown }).errors
-      }, { status: 400 });
-    }
-    
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
@@ -75,10 +56,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'

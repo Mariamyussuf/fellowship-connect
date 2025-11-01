@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { MediaService } from '@/services/server/media.service';
 import { UploadMediaSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const mediaService = new MediaService();
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'

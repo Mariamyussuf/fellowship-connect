@@ -1,33 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { MediaService } from '@/services/server/media.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const mediaService = new MediaService();
 
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+function getClientIP(request: NextRequest): string {
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+
+  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+
+  return 'unknown';
+}
+
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
       }, { status: 401 });
     }
     
-    const result = await mediaService.getSignedUrl(params.id);
+    const ipAddress = getClientIP(request);
+    console.log('Generating media download URL', { id, userId: user.uid, ipAddress });
+    const result = await mediaService.getSignedUrl(id);
     
     if (result.success) {
       return NextResponse.json({

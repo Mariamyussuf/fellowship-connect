@@ -1,130 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { PrayerService } from '@/services/server/prayer.service';
 import { UpdatePrayerStatusSchema } from '@/lib/validation';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
+const prayerService = new PrayerService();
+const ADMIN_ROLES = new Set(['admin', 'super-admin']);
+
+function authorize(request: NextRequest): { user: NonNullable<NextRequest['user']> } | NextResponse {
+  const user = request.user;
+
+  if (!user) {
+    return NextResponse.json({
+      success: false,
+      error: 'Authentication required'
+    }, { status: 401 });
+  }
+
+  if (!ADMIN_ROLES.has(user.role ?? 'member')) {
+    return NextResponse.json({
+      success: false,
+      error: 'Insufficient permissions'
+    }, { status: 403 });
+  }
+
+  return { user };
 }
 
-const prayerService = new PrayerService();
+function handleError(error: unknown, context: string) {
+  console.error(`${context} error:`, error);
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
+    return NextResponse.json({
+      success: false,
+      error: 'Validation failed',
+      details: (error as { errors?: unknown }).errors
+    }, { status: 400 });
+  }
+
+  const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+  return NextResponse.json({
+    success: false,
+    error: errorMessage
+  }, { status: 500 });
+}
+
+export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+  const { id } = context.params;
+
+  const auth = authorize(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication required'
-      }, { status: 401 });
-    }
-    
-    // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
-    const allowedRoles = ['admin', 'super-admin'];
-    const hasRole = allowedRoles.includes(userRole);
-    
-    if (!hasRole) {
-      return NextResponse.json({
-        success: false,
-        error: 'Insufficient permissions'
-      }, { status: 403 });
-    }
-    
     const body = await request.json();
-    
-    // Validate input
-    const validatedData = UpdatePrayerStatusSchema.parse(body);
-    
-    const result = await prayerService.updatePrayerStatus(params.id, validatedData.status);
-    
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: result.message
-      }, { status: 200 });
-    } else {
+    const { status } = UpdatePrayerStatusSchema.parse(body);
+
+    console.log('Updating prayer request status', { id, userId: auth.user.uid, status });
+    const result = await prayerService.updatePrayerStatus(id, status);
+
+    if (!result.success) {
       return NextResponse.json({
         success: false,
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: unknown) {
-    console.error('Update prayer request status API error:', error);
-    
-    // Handle Zod validation errors
-    if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
-      return NextResponse.json({
-        success: false,
-        error: 'Validation failed',
-        details: (error as { errors?: unknown }).errors
-      }, { status: 400 });
-    }
-    
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+
     return NextResponse.json({
-      success: false,
-      error: errorMessage
-    }, { status: 500 });
+      success: true,
+      message: result.message
+    }, { status: 200 });
+  } catch (error: unknown) {
+    return handleError(error, 'Update prayer request status API');
   }
 }
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+  const { id } = context.params;
+
+  const auth = authorize(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication required'
-      }, { status: 401 });
-    }
-    
-    // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
-    const allowedRoles = ['admin', 'super-admin'];
-    const hasRole = allowedRoles.includes(userRole);
-    
-    if (!hasRole) {
-      return NextResponse.json({
-        success: false,
-        error: 'Insufficient permissions'
-      }, { status: 403 });
-    }
-    
-    const result = await prayerService.deletePrayerRequest(params.id);
-    
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: result.message
-      }, { status: 200 });
-    } else {
+    console.log('Deleting prayer request', { id, userId: auth.user.uid });
+    const result = await prayerService.deletePrayerRequest(id);
+
+    if (!result.success) {
       return NextResponse.json({
         success: false,
         error: result.message
       }, { status: 400 });
     }
-  } catch (error: unknown) {
-    console.error('Delete prayer request API error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+
     return NextResponse.json({
-      success: false,
-      error: errorMessage
-    }, { status: 500 });
+      success: true,
+      message: result.message
+    }, { status: 200 });
+  } catch (error: unknown) {
+    return handleError(error, 'Delete prayer request API');
   }
 }
 

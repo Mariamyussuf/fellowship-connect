@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { UserService } from '@/services/server/user.service';
 import { UpdateRoleSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const userService = new UserService();
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -28,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -74,10 +62,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -85,7 +72,7 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Check if user has super-admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const hasRole = userRole === 'super-admin';
     
     if (!hasRole) {

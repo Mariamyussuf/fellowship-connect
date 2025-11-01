@@ -1,27 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { MediaService } from '@/services/server/media.service';
 import { UpdateMediaSchema } from '@/lib/validation';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
-
 const mediaService = new MediaService();
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -33,7 +21,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     // Validate input
     const validatedData = UpdateMediaSchema.parse(body);
     
-    const result = await mediaService.updateMetadata(params.id, validatedData);
+    const result = await mediaService.updateMetadata(id, validatedData);
     
     if (result.success) {
       return NextResponse.json({

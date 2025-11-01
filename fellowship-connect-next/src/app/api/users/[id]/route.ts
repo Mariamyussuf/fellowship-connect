@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole, requireOwnership } from '@/middleware/rbac';
 import { UserService } from '@/services/server/user.service';
 import { UpdateProfileSchema } from '@/lib/validation';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
-
 const userService = new UserService();
 
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -30,8 +17,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
     
     // Check ownership or admin role
-    const userRole = authReq.user.role || 'member';
-    const isOwner = authReq.user.id === params.id;
+    const userRole = user.role || 'member';
+    const isOwner = user.uid === id;
     const isAdmin = ['admin', 'super-admin'].includes(userRole);
     
     if (!isOwner && !isAdmin) {
@@ -41,7 +28,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       }, { status: 403 });
     }
     
-    const result = await userService.getUser(params.id);
+    const result = await userService.getUser(id);
     
     if (result.success) {
       return NextResponse.json({
@@ -64,14 +51,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 }
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -79,7 +64,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
     
     // Check ownership (only owners can update their own profile)
-    const isOwner = authReq.user.id === params.id;
+    const isOwner = user.uid === id;
     
     if (!isOwner) {
       return NextResponse.json({
@@ -93,7 +78,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     // Validate input
     const validatedData = UpdateProfileSchema.parse(body);
     
-    const result = await userService.updateUser(params.id, validatedData);
+    const result = await userService.updateUser(id, validatedData);
     
     if (result.success) {
       return NextResponse.json({
@@ -126,14 +111,12 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
 }
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -141,7 +124,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     }
     
     // Only super-admins can delete users
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const isSuperAdmin = userRole === 'super-admin';
     
     if (!isSuperAdmin) {
@@ -151,7 +134,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       }, { status: 403 });
     }
     
-    const result = await userService.deleteUser(params.id);
+    const result = await userService.deleteUser(id);
     
     if (result.success) {
       return NextResponse.json({
