@@ -1,11 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getFirebaseAdmin } from '../lib/firebase-admin';
-import { getSession } from '../lib/session';
-
-/**
- * Authentication middleware for Next.js API routes
- * Verifies Firebase session cookies and attaches user data to request context
- */
 
 export interface AuthenticatedRequest extends NextApiRequest {
   user?: {
@@ -20,146 +14,134 @@ interface FirebaseError {
   message: string;
 }
 
-/**
- * Middleware that requires authentication
- * @param handler Next.js API route handler
- * @returns Wrapped handler with authentication
- */
+async function buildUser(sessionCookie: string): Promise<AuthenticatedRequest['user']> {
+  const { auth, db } = getFirebaseAdmin();
+  if (!auth) {
+    throw new Error('AUTH_NOT_INITIALIZED');
+  }
+
+  const decoded = await auth.verifySessionCookie(sessionCookie, true);
+
+  let role = 'member';
+  if (db) {
+    try {
+      const snap = await db.collection('users').doc(decoded.uid).get();
+      if (snap.exists) {
+        const data = snap.data();
+        role = data?.role || role;
+      }
+    } catch (error) {
+      console.warn('Failed to resolve user role, defaulting to member:', error);
+    }
+  }
+
+  return {
+    id: decoded.uid,
+    email: decoded.email,
+    role
+  };
+}
+
+function translateFirebaseError(error: FirebaseError) {
+  if (error.code === 'auth/id-token-expired') {
+    return {
+      status: 401,
+      body: {
+        error: {
+          code: 'SESSION_EXPIRED',
+          message: 'Session expired'
+        }
+      }
+    } as const;
+  }
+
+  if (error.code === 'auth/id-token-revoked') {
+    return {
+      status: 401,
+      body: {
+        error: {
+          code: 'SESSION_REVOKED',
+          message: 'Session revoked'
+        }
+      }
+    } as const;
+  }
+
+  return {
+    status: 401,
+    body: {
+      error: {
+        code: 'INVALID_AUTH',
+        message: 'Invalid authentication'
+      }
+    }
+  } as const;
+}
+
 export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>) {
   return async (req: AuthenticatedRequest, res: NextApiResponse) => {
     try {
-      // First check for session cookie
       const sessionCookie = req.cookies.session;
-      
       if (!sessionCookie) {
-        return res.status(401).json({ 
-          error: { 
-            code: 'UNAUTHORIZED', 
-            message: 'Authentication required' 
-          } 
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required'
+          }
         });
       }
-      
-      // Get Firebase Admin SDK
-      const { auth } = getFirebaseAdmin();
-      
-      // Verify Firebase session cookie
-      const decodedClaims = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
-      
-      // Get user role from Firestore
-      let userRole = 'member';
-      try {
-        const { db } = getFirebaseAdmin();
-        const userDoc = await db.collection('users').doc(decodedClaims.uid).get();
-        if (userDoc.exists) {
-          const userData = userDoc.data();
-          userRole = userData?.role || 'member';
-        }
-      } catch (error) {
-        console.warn('Could not fetch user role, defaulting to member:', error);
-      }
-      
-      // Attach user data to request
-      req.user = {
-        id: decodedClaims.uid,
-        email: decodedClaims.email,
-        role: userRole
-      };
-      
-      // Call the actual handler
+
+      req.user = await buildUser(sessionCookie);
       return handler(req, res);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Authentication error:', error);
-      
-      // Handle specific Firebase auth errors
-      if (error instanceof Error && 'code' in error) {
-        const firebaseError = error as FirebaseError;
-        if (firebaseError.code === 'auth/id-token-expired') {
-          return res.status(401).json({ 
-            error: { 
-              code: 'SESSION_EXPIRED', 
-              message: 'Session expired' 
-            } 
+
+      if (error instanceof Error) {
+        if (error.message === 'AUTH_NOT_INITIALIZED') {
+          return res.status(500).json({
+            error: {
+              code: 'AUTH_NOT_INITIALIZED',
+              message: 'Authentication service not available'
+            }
           });
         }
-        
-        if (firebaseError.code === 'auth/id-token-revoked') {
-          return res.status(401).json({ 
-            error: { 
-              code: 'SESSION_REVOKED', 
-              message: 'Session revoked' 
-            } 
-          });
+
+        if ('code' in error) {
+          const translated = translateFirebaseError(error as FirebaseError);
+          return res.status(translated.status).json(translated.body);
         }
       }
-      
-      return res.status(401).json({ 
-        error: { 
-          code: 'INVALID_AUTH', 
-          message: 'Invalid authentication' 
-        } 
+
+      return res.status(401).json({
+        error: {
+          code: 'INVALID_AUTH',
+          message: 'Invalid authentication'
+        }
       });
     }
   };
 }
 
-/**
- * Middleware that allows optional authentication
- * @param handler Next.js API route handler
- * @returns Wrapped handler with optional authentication
- */
 export function withOptionalAuth(handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>) {
   return async (req: AuthenticatedRequest, res: NextApiResponse) => {
     try {
-      // Check for session cookie
       const sessionCookie = req.cookies.session;
-      
       if (sessionCookie) {
-        // Get Firebase Admin SDK
-        const { auth } = getFirebaseAdmin();
-        
-        // Verify Firebase session cookie
-        const decodedClaims = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
-        
-        // Get user role from Firestore
-        let userRole = 'member';
         try {
-          const { db } = getFirebaseAdmin();
-          const userDoc = await db.collection('users').doc(decodedClaims.uid).get();
-          if (userDoc.exists) {
-            const userData = userDoc.data();
-            userRole = userData?.role || 'member';
-          }
+          req.user = await buildUser(sessionCookie);
         } catch (error) {
-          console.warn('Could not fetch user role, defaulting to member:', error);
+          console.warn('Optional auth: failed to attach user context:', error);
         }
-        
-        // Attach user data to request
-        req.user = {
-          id: decodedClaims.uid,
-          email: decodedClaims.email,
-          role: userRole
-        };
       }
-      
-      // Call the actual handler
+
       return handler(req, res);
     } catch (error) {
       console.error('Optional authentication error:', error);
-      // Continue without user data if authentication fails
       return handler(req, res);
     }
   };
 }
 
-/**
- * Rate limiting for failed authentication attempts
- * @param req Next.js API request
- * @param res Next.js API response
- * @returns Boolean indicating if request should be allowed
- */
-export async function checkRateLimit(req: NextApiRequest, res: NextApiResponse): Promise<boolean> {
-  // In a real implementation, you would use Redis or similar
-  // For now, we'll just return true to allow the request
-  return true;
+export function checkRateLimit(): Promise<boolean> {
+  return Promise.resolve(true);
 }

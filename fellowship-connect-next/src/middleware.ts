@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+interface VerifiedUser {
+  id: string;
+  role: string;
+  email?: string;
+}
+
+interface VerificationResult {
+  success: boolean;
+  user?: VerifiedUser;
+}
+
 // Define which routes are protected
 const protectedRoutes = ['/dashboard', '/profile', '/admin', '/api'];
 const authRoutes = ['/login', '/register'];
@@ -13,86 +24,76 @@ const publicApiRoutes = [
   '/api/auth/verify-email'
 ];
 
+async function verifySession(request: NextRequest): Promise<VerificationResult> {
+  const sessionCookie = request.cookies.get('session')?.value;
+
+  if (!sessionCookie) {
+    return { success: false };
+  }
+
+  try {
+    const verifyUrl = new URL('/api/auth/verify', request.nextUrl.origin);
+
+    const verifyResponse = await fetch(verifyUrl, {
+      method: 'GET',
+      headers: {
+        cookie: request.headers.get('cookie') ?? ''
+      },
+      cache: 'no-store'
+    });
+
+    if (!verifyResponse.ok) {
+      return { success: false };
+    }
+
+    const data = (await verifyResponse.json()) as VerificationResult;
+    return data;
+  } catch (error) {
+    console.error('Failed to verify session via API:', error);
+    return { success: false };
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Check if the route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
   const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route));
-  
+
   // Skip middleware for public API routes
   if (isPublicApiRoute) {
     return NextResponse.next();
   }
-  
-  // For protected routes, we need to check if user is authenticated
+
   if (isProtectedRoute) {
-    // Get the session cookie from request headers
-    const sessionCookie = request.cookies.get('session')?.value;
-    
-    if (!sessionCookie) {
-      // Redirect to login if no session cookie
+    const verification = await verifySession(request);
+
+    if (!verification.success || !verification.user) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }
-    
-    try {
-      // Dynamically import firebase admin only when needed to avoid edge runtime issues
-      const { auth } = await import('./lib/firebaseAdmin');
-      
-      // Check if auth is available
-      if (!auth) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        return NextResponse.redirect(url);
-      }
-      
-      // Verify the session cookie
-      const decodedClaims = await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
-      
-      // Add user info to headers for downstream use
-      const response = NextResponse.next();
-      response.headers.set('x-user-id', decodedClaims.uid);
-      response.headers.set('x-user-role', decodedClaims.role || 'member');
-      
-      return response;
-    } catch (error) {
-      console.error('Authentication error:', error);
-      // If verification fails, redirect to login
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+
+    const response = NextResponse.next();
+    response.headers.set('x-user-id', verification.user.id);
+    response.headers.set('x-user-role', verification.user.role || 'member');
+
+    if (verification.user.email) {
+      response.headers.set('x-user-email', verification.user.email);
     }
+
+    return response;
   }
 
-  // If logged in and trying to access auth routes, redirect to dashboard
   if (isAuthRoute) {
-    const sessionCookie = request.cookies.get('session')?.value;
-    
-    if (sessionCookie) {
-      try {
-        // Dynamically import firebase admin only when needed to avoid edge runtime issues
-        const { auth } = await import('./lib/firebaseAdmin');
-        
-        // Check if auth is available
-        if (!auth) {
-          return NextResponse.next();
-        }
-        
-        // Verify the session cookie
-        await auth.verifySessionCookie(sessionCookie, true /** checkRevoked */);
-        
-        // Redirect authenticated users away from auth pages
-        const url = request.nextUrl.clone();
-        url.pathname = '/dashboard';
-        return NextResponse.redirect(url);
-      } catch (error) {
-        console.error('Authentication check error:', error);
-        // If verification fails, allow access to auth routes
-        // The invalid cookie will be handled by the auth routes
-      }
+    const verification = await verifySession(request);
+
+    if (verification.success) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
     }
   }
 
