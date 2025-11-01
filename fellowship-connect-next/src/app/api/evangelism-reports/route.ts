@@ -1,36 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { PrayerService } from '@/services/server/prayer.service';
 import { SubmitEvangelismReportSchema } from '@/lib/validation';
-import { AuthenticatedUser } from '@/lib/authMiddleware';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: AuthenticatedUser;
-}
 
 const prayerService = new PrayerService();
 
+function getClientIP(request: NextRequest): string {
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+
+  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+
+  return 'unknown';
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
       }, { status: 401 });
     }
-    
+
     const body = await request.json();
-    
+
     // Validate input
     const validatedData = SubmitEvangelismReportSchema.parse(body);
-    
+
     const result = await prayerService.submitEvangelismReport(
-      authReq.user.uid,
+      user.uid,
       {
         title: validatedData.title,
         description: validatedData.description,
@@ -41,7 +46,7 @@ export async function POST(request: NextRequest) {
         followUpNotes: validatedData.followUpNotes
       }
     );
-    
+
     if (result.success) {
       return NextResponse.json({
         success: true,
@@ -56,16 +61,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: unknown) {
     console.error('Submit evangelism report API error:', error);
-    
-    // Handle Zod validation errors
-    if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'ZodError') {
-      return NextResponse.json({
-        success: false,
-        error: 'Validation failed',
-        details: (error as { errors?: unknown }).errors
-      }, { status: 400 });
-    }
-    
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({
       success: false,
@@ -76,43 +71,42 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
       }, { status: 401 });
     }
-    
+
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
-    
+
     if (!hasRole) {
       return NextResponse.json({
         success: false,
         error: 'Insufficient permissions'
       }, { status: 403 });
     }
-    
+
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const filters: Record<string, unknown> = {};
-    
+
     // Convert pagination to limit/lastDoc
     let limit = 10;
     if (searchParams.get('limit')) {
       limit = parseInt(searchParams.get('limit') || '10');
     }
-    
+
     const result = await prayerService.getEvangelismReports(
       filters,
       { limit }
     );
-    
+
     if (result.success) {
       return NextResponse.json({
         success: true,

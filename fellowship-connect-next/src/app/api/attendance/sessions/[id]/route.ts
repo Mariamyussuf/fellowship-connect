@@ -1,26 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { AttendanceService } from '@/services/server/attendance.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const attendanceService = new AttendanceService();
 
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+function getClientIP(request: NextRequest): string {
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+
+  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+
+  return 'unknown';
+}
+
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -28,7 +30,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
     
     // Anyone can get session details
-    const result = await attendanceService.generateQRCode(params.id);
+    const ipAddress = getClientIP(request);
+    const result = await attendanceService.generateQRCode(id, ipAddress);
     
     if (result.success) {
       return NextResponse.json({
@@ -51,14 +54,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 }
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { id } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -77,7 +78,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       }, { status: 403 });
     }
     
-    const result = await attendanceService.closeSession(params.id);
+    const ipAddress = getClientIP(request);
+    const result = await attendanceService.closeSession(id, ipAddress);
     
     if (result.success) {
       return NextResponse.json({
