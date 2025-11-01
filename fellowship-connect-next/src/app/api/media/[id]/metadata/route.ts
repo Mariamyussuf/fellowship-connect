@@ -4,9 +4,9 @@ import { UpdateMediaSchema } from '@/lib/validation';
 
 const mediaService = new MediaService();
 
-export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     const user = request.user;
 
     if (!user) {

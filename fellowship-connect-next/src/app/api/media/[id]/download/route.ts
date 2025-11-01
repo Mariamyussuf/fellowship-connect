@@ -17,9 +17,9 @@ function getClientIP(request: NextRequest): string {
   return 'unknown';
 }
 
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     const user = request.user;
 
     if (!user) {

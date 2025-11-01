@@ -43,8 +43,8 @@ function handleError(error: unknown, context: string) {
   }, { status: 500 });
 }
 
-export async function PUT(request: NextRequest, context: { params: { id: string } }) {
-  const { id } = context.params;
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
 
   const auth = authorize(request);
   if (auth instanceof NextResponse) {
@@ -74,8 +74,8 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
   }
 }
 
-export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
-  const { id } = context.params;
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
 
   const auth = authorize(request);
   if (auth instanceof NextResponse) {

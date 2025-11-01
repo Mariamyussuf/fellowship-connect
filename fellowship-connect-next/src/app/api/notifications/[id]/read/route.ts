@@ -3,9 +3,9 @@ import { NotificationService } from '@/services/server/notification.service';
 
 const notificationService = new NotificationService();
 
-export async function PATCH(request: NextRequest, context: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     const user = request.user;
 
     if (!user) {
