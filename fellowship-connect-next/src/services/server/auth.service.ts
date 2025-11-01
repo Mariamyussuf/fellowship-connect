@@ -126,6 +126,73 @@ export class AuthService extends BaseService<User> {
       };
     }
   }
+  /**
+   * User signup - Create a new user account
+   * @param email User email
+   * @param password User password
+   * @param displayName User's display name
+   * @returns Success status and user ID
+   */
+  async signup(email: string, password: string, displayName: string): Promise<{ success: boolean; userId?: string; message: string }> {
+    try {
+      const { auth, db } = getFirebaseAdmin();
+      
+      // Create user in Firebase Auth
+      const userRecord = await auth.createUser({
+        email,
+        password,
+        displayName,
+        emailVerified: false
+      });
+
+      // Create user document in Firestore
+      const now = Timestamp.now().toDate().toISOString();
+      const userData: Partial<User> = {
+        uid: userRecord.uid,
+        email,
+        displayName,
+        role: 'member', // Default role (must be one of: 'member', 'admin', 'super-admin')
+        photoURL: null,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: null
+      };
+
+      await db.collection('users').doc(userRecord.uid).set(userData);
+
+      // Send email verification
+      await this.verifyEmail(userRecord.uid);
+
+      // Log audit action
+      await this.logAudit('USER_SIGNUP', userRecord.uid, { email });
+
+      return {
+        success: true,
+        userId: userRecord.uid,
+        message: 'User registered successfully. Please check your email to verify your account.'
+      };
+    } catch (error: unknown) {
+      console.error('Signup error:', error);
+      
+      let errorMessage = 'Failed to create user account';
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as FirebaseError;
+        if (firebaseError.code === 'auth/email-already-exists') {
+          errorMessage = 'An account with this email already exists';
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          errorMessage = 'Invalid email address';
+        } else if (firebaseError.code === 'auth/weak-password') {
+          errorMessage = 'Password is too weak';
+        }
+      }
+      
+      return { 
+        success: false, 
+        message: errorMessage 
+      };
+    }
+  }
+
   async resetPassword(email: string): Promise<{ success: boolean; message: string }> {
     try {
       const { auth } = getFirebaseAdmin();
