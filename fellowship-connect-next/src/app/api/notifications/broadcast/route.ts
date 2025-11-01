@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { SendNotificationSchema } from '@/lib/validation';
-import { AuthenticatedUser } from '@/lib/authMiddleware';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: AuthenticatedUser;
-}
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -22,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -39,7 +30,10 @@ export async function POST(request: NextRequest) {
     const validatedData = SendNotificationSchema.parse(body);
     
     // For now, we'll just simulate broadcasting a notification
-    console.log('Broadcasting notification:', validatedData);
+    console.log('Broadcasting notification:', {
+      userId: user.uid,
+      payload: validatedData
+    });
     
     // In a real implementation, you would get all users and send to them
     

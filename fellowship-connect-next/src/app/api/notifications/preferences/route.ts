@@ -1,32 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { NotificationService } from '@/services/server/notification.service';
 import { UpdateNotificationPreferencesSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const notificationService = new NotificationService();
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
       }, { status: 401 });
     }
     
-    const result = await notificationService.getUserPreferences(authReq.user.id);
+    const result = await notificationService.getUserPreferences(user.uid);
     
     if (result.success) {
       return NextResponse.json({
@@ -51,10 +40,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -67,7 +55,7 @@ export async function PUT(request: NextRequest) {
     const validatedData = UpdateNotificationPreferencesSchema.parse(body);
     
     const result = await notificationService.updatePreferences(
-      authReq.user.id,
+      user.uid,
       validatedData
     );
     

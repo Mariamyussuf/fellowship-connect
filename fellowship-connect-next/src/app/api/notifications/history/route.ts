@@ -1,24 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { NotificationService } from '@/services/server/notification.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const notificationService = new NotificationService();
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -35,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
     
     const result = await notificationService.getNotificationHistory(
-      authReq.user.id,
+      user.uid,
       { limit }
     );
     

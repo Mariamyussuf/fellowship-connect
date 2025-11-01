@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { NotificationService } from '@/services/server/notification.service';
 import { SendNotificationSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const notificationService = new NotificationService();
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -32,7 +21,10 @@ export async function POST(request: NextRequest) {
     const validatedData = SendNotificationSchema.parse(body);
     
     // For now, we'll just simulate sending a notification
-    console.log('Sending notification:', validatedData);
+    console.log('Sending notification:', {
+      userId: user.uid,
+      payload: validatedData
+    });
     
     // In a real implementation, you would determine the recipient and send accordingly
     
