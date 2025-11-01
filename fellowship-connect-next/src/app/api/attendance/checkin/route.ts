@@ -4,12 +4,6 @@ import { CheckInSchema } from '@/lib/validation';
 import { withApiWriteRateLimit } from '@/middleware/rate-limit';
 import { withSecurity } from '@/middleware/security';
 import { withErrorHandling } from '@/middleware/error-handler';
-import { AuthenticatedUser } from '@/lib/authMiddleware';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: AuthenticatedUser;
-}
 
 const attendanceService = new AttendanceService();
 
@@ -55,9 +49,9 @@ async function handler(request: NextRequest) {
   }
   
   // Authenticate user
-  const authReq = request as AuthenticatedRequest;
-  
-  if (!authReq.user) {
+  const user = request.user;
+
+  if (!user) {
     const response = NextResponse.json({
       success: false,
       error: 'Authentication required'
@@ -83,13 +77,14 @@ async function handler(request: NextRequest) {
   // Validate input
   const validatedData = CheckInSchema.parse(body);
   
-  const userId = authReq.user.id;
+  const userId = user.uid;
   const ipAddress = getClientIP(request);
   
   const result = await attendanceService.checkIn(
     userId,
     validatedData.sessionId,
-    validatedData.method
+    validatedData.method,
+    ipAddress
   );
   
   if (result.success) {

@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { AttendanceService } from '@/services/server/attendance.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const attendanceService = new AttendanceService();
 
+function getClientIP(request: NextRequest): string {
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+
+  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+
+  return 'unknown';
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -49,7 +51,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
     
-    const result = await attendanceService.getSessionReport(sessionId);
+    const ipAddress = getClientIP(request);
+    const result = await attendanceService.getSessionReport(sessionId, ipAddress);
     
     if (result.success) {
       return NextResponse.json({

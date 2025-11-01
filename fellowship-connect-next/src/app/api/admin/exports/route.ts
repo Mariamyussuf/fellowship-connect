@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminService } from '@/services/server/admin.service';
+import type { AuthenticatedUser } from '@/lib/authMiddleware';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-    uid: string;
-  };
-}
+type AuthenticatedRequest = NextRequest & { user?: AuthenticatedUser };
 
 // Get client IP from request
 function getClientIP(request: NextRequest): string {

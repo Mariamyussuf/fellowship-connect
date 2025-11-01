@@ -1,17 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { AdminService } from '@/services/server/admin.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-    uid: string;
-  };
-}
 
 // Get client IP from request
 function getClientIP(request: NextRequest): string {
@@ -32,10 +20,9 @@ const adminService = new AdminService();
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -43,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
@@ -59,7 +46,7 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get('start') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // Default to 30 days ago
     const end = searchParams.get('end') || new Date().toISOString();
     
-    const userId = authReq.user.uid;
+    const userId = user.uid;
     const ipAddress = getClientIP(request);
     
     const result = await adminService.getUserAnalytics({ start, end }, userId, ipAddress);

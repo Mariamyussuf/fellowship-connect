@@ -1,38 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { AttendanceService } from '@/services/server/attendance.service';
 import { OfflineSyncSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const attendanceService = new AttendanceService();
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
       }, { status: 401 });
     }
-    
+
     const body = await request.json();
-    
+
     // Validate input
     const validatedData = OfflineSyncSchema.parse(body);
-    
+
     const result = await attendanceService.syncOfflineAttendance(validatedData);
-    
+
     if (result.success) {
       return NextResponse.json({
         success: true,

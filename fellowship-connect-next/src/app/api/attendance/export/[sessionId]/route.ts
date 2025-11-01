@@ -1,42 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { AttendanceService } from '@/services/server/attendance.service';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const attendanceService = new AttendanceService();
 
+function getClientIP(request: NextRequest): string {
+  const xForwardedFor = request.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
 
-export async function GET(request: NextRequest, context: { params: Promise<{ sessionId: string }> }) {
+  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+
+  return 'unknown';
+}
+
+export async function GET(request: NextRequest, context: { params: { sessionId: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
-    
-    if (!authReq.user) {
+    const { sessionId } = context.params;
+    const user = request.user;
+
+    if (!user) {
       return NextResponse.json({
-        success: false,
         error: 'Authentication required'
       }, { status: 401 });
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     
     if (!hasRole) {
       return NextResponse.json({
-        success: false,
         error: 'Insufficient permissions'
       }, { status: 403 });
     }
@@ -45,14 +43,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ses
     const { searchParams } = new URL(request.url);
     const format = (searchParams.get('format') || 'json') as 'csv' | 'json';
     
-    const result = await attendanceService.exportAttendance(params.sessionId, format);
+    const ipAddress = getClientIP(request);
+    const result = await attendanceService.exportAttendance(sessionId, format, ipAddress);
     
     if (result.success) {
       return new NextResponse(result.data, {
         status: 200,
         headers: {
           'Content-Type': format === 'csv' ? 'text/csv' : 'application/json',
-          'Content-Disposition': `attachment; filename=\"attendance-export-${params.sessionId}.${format}\"`
+          'Content-Disposition': `attachment; filename="attendance-export-${sessionId}.${format}"`
         }
       });
     } else {
