@@ -17,15 +17,9 @@ function getClientIP(request: NextRequest): string {
   return 'unknown';
 }
 
-interface RouteContext {
-  params: {
-    sessionId: string;
-  };
-}
-
 export async function GET(
   request: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { sessionId: string } }
 ) {
   try {
     const sessionId = params.sessionId;
