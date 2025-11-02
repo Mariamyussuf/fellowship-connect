@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrayerService } from '@/services/server/prayer.service';
+import { AuthenticatedUser, UserRole } from '@/lib/authMiddleware';
+
+interface AuthenticatedRequest extends NextRequest {
+  user?: AuthenticatedUser;
+}
 
 const prayerService = new PrayerService();
-const ADMIN_ROLES = new Set(['admin', 'super-admin']);
+const ADMIN_ROLES = new Set<UserRole>(['admin', 'super-admin']);
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
   try {
     const user = request.user;
     
