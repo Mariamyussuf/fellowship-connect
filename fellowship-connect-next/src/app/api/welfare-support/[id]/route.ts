@@ -9,11 +9,17 @@ interface AuthenticatedRequest extends NextRequest {
 const prayerService = new PrayerService();
 const ADMIN_ROLES = new Set<UserRole>(['admin', 'super-admin']);
 
+type RouteParams = {
+  params: {
+    id: string;
+  };
+};
+
 export async function DELETE(
   request: AuthenticatedRequest,
-  context: { params: { id: string } }
+  { params }: RouteParams
 ) {
-  const { id } = context.params;
+  const { id } = params;
   try {
     const user = request.user;
     
