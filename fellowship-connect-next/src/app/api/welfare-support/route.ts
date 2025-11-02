@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
 import { PrayerService } from '@/services/server/prayer.service';
 import { SubmitWelfareSupportSchema } from '@/lib/validation';
-
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
 
 const prayerService = new PrayerService();
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -32,7 +21,7 @@ export async function POST(request: NextRequest) {
     const validatedData = SubmitWelfareSupportSchema.parse(body);
     
     const result = await prayerService.submitWelfareSupport(
-      authReq.user.id,
+      user.uid,
       {
         title: validatedData.title,
         description: validatedData.description,
@@ -76,10 +65,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -87,7 +75,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
+    const userRole = user.role || 'member';
     const allowedRoles = ['admin', 'super-admin'];
     const hasRole = allowedRoles.includes(userRole);
     

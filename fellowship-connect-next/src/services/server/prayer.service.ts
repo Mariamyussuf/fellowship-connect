@@ -190,6 +190,35 @@ export class PrayerService extends BaseService<PrayerRequest> {
   }
 
   /**
+   * Delete welfare support request (admin only)
+   * @param requestId Request ID
+   * @returns Success status
+   */
+  async deleteWelfareSupportRequest(
+    requestId: string
+  ): Promise<{ success: boolean; message?: string }> {
+    try {
+      const { db } = getFirebaseAdmin();
+      
+      await db.collection('welfareSupport').doc(requestId).delete();
+      
+      // Log audit action
+      await this.logAudit('DELETE_WELFARE_SUPPORT', requestId, {});
+      
+      return { 
+        success: true, 
+        message: 'Welfare support request deleted successfully' 
+      };
+    } catch (error) {
+      console.error('Delete welfare support request error:', error);
+      return { 
+        success: false, 
+        message: 'Failed to delete welfare support request' 
+      };
+    }
+  }
+
+  /**
    * Submit welfare support request
    * @param userId User ID
    * @param data Welfare support data
@@ -202,11 +231,8 @@ export class PrayerService extends BaseService<PrayerRequest> {
     try {
       const { db } = getFirebaseAdmin();
       
-      const welfareData: Partial<WelfareSupport> = {
+      const welfareData = {
         userId,
-        category: data.category,
-        description: data.description,
-        urgency: data.urgency as 'low' | 'medium' | 'high' | 'critical',
         status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

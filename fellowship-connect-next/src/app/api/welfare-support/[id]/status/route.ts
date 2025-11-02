@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { PrayerService } from '@/services/server/prayer.service';
 import { UpdateWelfareStatusSchema } from '@/lib/validation';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
-
 const prayerService = new PrayerService();
+const ADMIN_ROLES = new Set(['admin', 'super-admin']);
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -30,9 +17,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
-    const allowedRoles = ['admin', 'super-admin'];
-    const hasRole = allowedRoles.includes(userRole);
+    const userRole = user.role || 'member';
+    const hasRole = ADMIN_ROLES.has(userRole);
     
     if (!hasRole) {
       return NextResponse.json({
@@ -51,6 +37,12 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       validatedData.status,
       validatedData.notes
     );
+    
+    console.log('Updated welfare support status', { 
+      requestId: params.id, 
+      status: validatedData.status,
+      updatedBy: user.uid 
+    });
     
     if (result.success) {
       return NextResponse.json({

@@ -1,27 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/auth';
-import { requireRole } from '@/middleware/rbac';
 import { PrayerService } from '@/services/server/prayer.service';
 
-// Define the authenticated request type for App Router
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    id: string;
-    email?: string;
-    role?: string;
-  };
-}
-
 const prayerService = new PrayerService();
+const ADMIN_ROLES = new Set(['admin', 'super-admin']);
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Get the params from the context
-    const params = await context.params;
-    // Authenticate user
-    const authReq = request as AuthenticatedRequest;
+    const user = request.user;
     
-    if (!authReq.user) {
+    if (!user) {
       return NextResponse.json({
         success: false,
         error: 'Authentication required'
@@ -29,9 +16,8 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     }
     
     // Check if user has admin role
-    const userRole = authReq.user.role || 'member';
-    const allowedRoles = ['admin', 'super-admin'];
-    const hasRole = allowedRoles.includes(userRole);
+    const userRole = user.role || 'member';
+    const hasRole = ADMIN_ROLES.has(userRole);
     
     if (!hasRole) {
       return NextResponse.json({
@@ -40,7 +26,14 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       }, { status: 403 });
     }
     
-    const result = await prayerService.deletePrayerRequest(params.id);
+    // Note: The correct method for deleting welfare support requests should be implemented in the service
+    // For now, we'll use a placeholder that will need to be updated when the service method is available
+    const result = await prayerService.deleteWelfareSupportRequest(params.id);
+    
+    console.log('Deleted welfare support request', { 
+      requestId: params.id, 
+      deletedBy: user.uid 
+    });
     
     if (result.success) {
       return NextResponse.json({
