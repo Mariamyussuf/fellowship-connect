@@ -9,7 +9,11 @@ interface AuthenticatedRequest extends NextRequest {
 const prayerService = new PrayerService();
 const ADMIN_ROLES = new Set<UserRole>(['admin', 'super-admin']);
 
-export async function DELETE(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: AuthenticatedRequest,
+  context: { params: { id: string } }
+) {
+  const { id } = context.params;
   try {
     const user = request.user;
     
@@ -33,10 +37,10 @@ export async function DELETE(request: AuthenticatedRequest, { params }: { params
     
     // Note: The correct method for deleting welfare support requests should be implemented in the service
     // For now, we'll use a placeholder that will need to be updated when the service method is available
-    const result = await prayerService.deleteWelfareSupportRequest(params.id);
+    const result = await prayerService.deleteWelfareSupportRequest(id);
     
     console.log('Deleted welfare support request', { 
-      requestId: params.id, 
+      requestId: id, 
       deletedBy: user.uid 
     });
     
